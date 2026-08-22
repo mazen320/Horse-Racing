@@ -1,0 +1,21 @@
+{
+  "name": "HorseRacing.Race.PlayModeTests",
+  "rootNamespace": "HorseRacing.Race.Tests",
+  "references": [
+    "HorseRacing.Race",
+    "Unity.InputSystem",
+    "Unity.InputSystem.TestFramework"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}

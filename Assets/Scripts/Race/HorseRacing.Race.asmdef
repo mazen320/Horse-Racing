@@ -1,0 +1,20 @@
+{
+  "name": "HorseRacing.Race",
+  "rootNamespace": "HorseRacing.Race",
+  "references": [
+    "MalbersAnimations",
+    "MalbersAnimations.InputSystem",
+    "Unity.InputSystem",
+    "Unity.Mathematics",
+    "Unity.Splines"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

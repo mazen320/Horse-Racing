@@ -1,0 +1,22 @@
+{
+  "name": "HorseRacing.Race.EditModeTests",
+  "rootNamespace": "HorseRacing.Race.Tests",
+  "references": [
+    "HorseRacing.Race",
+    "Unity.InputSystem"
+  ],
+  "includePlatforms": [
+    "Editor"
+  ],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": false,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false,
+  "optionalUnityReferences": [
+    "TestAssemblies"
+  ]
+}
