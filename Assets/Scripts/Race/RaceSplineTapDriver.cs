@@ -9,7 +9,8 @@ namespace HorseRacing.Race
 {
     /// <summary>
     /// Keyboard taps select a Malbers gait. Native animation root motion supplies
-    /// distance, while this component exclusively owns world position and yaw.
+    /// distance when available; conservative gait speeds support in-place clips.
+    /// This component exclusively owns world position and yaw.
     /// </summary>
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(100)]
@@ -36,6 +37,15 @@ namespace HorseRacing.Race
         public float gallopAt = 0.78f;
         [SerializeField, Range(0f, 0.2f)] float gaitHysteresis = 0.04f;
 
+        [Header("Track travel (meters/second)")]
+        [Tooltip("Conservative fallback speeds for horse clips that animate in place.")]
+        public float walkMetersPerSecond = 1.6f;
+        public float trotMetersPerSecond = 3.2f;
+        public float canterMetersPerSecond = 5.2f;
+        public float gallopMetersPerSecond = 7.2f;
+        [Tooltip("How quickly track speed catches the selected gait.")]
+        public float travelAcceleration = 4.5f;
+
         [Header("Look ahead on track")]
         [Tooltip("How far ahead on the spline to look/face (meters).")]
         public float lookAheadMeters = 16f;
@@ -43,6 +53,7 @@ namespace HorseRacing.Race
 
         readonly TapEffortModel _effortModel = new TapEffortModel();
         readonly RootMotionDistanceAccumulator _rootMotion = new RootMotionDistanceAccumulator();
+        readonly GaitTravelSpeedModel _travelSpeed = new GaitTravelSpeedModel();
         readonly ConfigurableKeyboardTapInput _keyboardInput = new ConfigurableKeyboardTapInput();
 
         Rigidbody _rigidbody;
@@ -88,6 +99,12 @@ namespace HorseRacing.Race
             canterAt = Mathf.Clamp(canterAt, trotAt, 1f);
             gallopAt = Mathf.Clamp(gallopAt, canterAt, 1f);
             gaitHysteresis = Mathf.Clamp(gaitHysteresis, 0f, 0.2f);
+
+            walkMetersPerSecond = Mathf.Max(0f, walkMetersPerSecond);
+            trotMetersPerSecond = Mathf.Max(walkMetersPerSecond, trotMetersPerSecond);
+            canterMetersPerSecond = Mathf.Max(trotMetersPerSecond, canterMetersPerSecond);
+            gallopMetersPerSecond = Mathf.Max(canterMetersPerSecond, gallopMetersPerSecond);
+            travelAcceleration = Mathf.Max(0.01f, travelAcceleration);
 
             lookAheadMeters = Mathf.Max(0f, lookAheadMeters);
             turnSmoothTime = Mathf.Max(0.01f, turnSmoothTime);
@@ -137,6 +154,7 @@ namespace HorseRacing.Race
 
             _effortModel.Reset();
             _rootMotion.Reset();
+            _travelSpeed.Reset();
             _gait = 0;
             _normalizedT = NearestT(transform.position);
             _ready = true;
@@ -298,7 +316,21 @@ namespace HorseRacing.Race
         {
             if (!_ready) return;
 
-            var distance = _rootMotion.Consume();
+            var deltaTime = Time.deltaTime;
+            var nativeDistance = _rootMotion.Consume();
+            var fallbackDistance = _travelSpeed.Step(_gait, deltaTime,
+                walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
+                gallopMetersPerSecond, travelAcceleration);
+
+            // Some horse packs use true root motion, while this preferred horse's
+            // clips animate in place. Never combine both sources or travel doubles.
+            var maxNativeDistance = gallopMetersPerSecond * Mathf.Max(0f, deltaTime);
+            var distance = nativeDistance > 0.00001f
+                ? Mathf.Min(nativeDistance, maxNativeDistance)
+                : fallbackDistance;
+            if (nativeDistance > 0.00001f)
+                _travelSpeed.FollowNative(distance, deltaTime);
+
             if (distance > 0.00001f)
                 _normalizedT = Mathf.Repeat(_normalizedT + distance / _splineLength, 1f);
             ApplyPose(false);
@@ -398,6 +430,7 @@ namespace HorseRacing.Race
             _gait = 0;
             _effortModel.Reset();
             _rootMotion.Reset();
+            _travelSpeed.Reset();
 
             if (!_ownershipCaptured) return;
 
