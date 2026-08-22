@@ -68,6 +68,7 @@ namespace HorseRacing.Race
         bool _originalAnimalDisablePosition;
         bool _originalAnimalDisableRotation;
         bool _originalAnimalRootMotion;
+        bool _originalAnimalLockForwardMovement;
         bool _originalAnimalLockUpDownMovement;
         bool _originalRigidbodyKinematic;
         bool _originalRigidbodyUseGravity;
@@ -166,6 +167,7 @@ namespace HorseRacing.Race
             _originalAnimalDisablePosition = animal.DisablePosition;
             _originalAnimalDisableRotation = animal.DisableRotation;
             _originalAnimalRootMotion = animal.RootMotion;
+            _originalAnimalLockForwardMovement = animal.LockForwardMovement;
             _originalAnimalLockUpDownMovement = animal.LockUpDownMovement;
             _originalAnimatorApplyRootMotion = animator.applyRootMotion;
             _originalAnimatorSpeed = animator.speed;
@@ -191,6 +193,7 @@ namespace HorseRacing.Race
             animal.DisableRotation = true;
             animal.UseCameraInput = false;
             animal.Strafe = false;
+            animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
             animal.UseSprint = false;
             animal.CanSprint = false;
@@ -344,6 +347,7 @@ namespace HorseRacing.Race
             animal.RootMotion = true;
             animal.UseCameraInput = false;
             animal.Strafe = false;
+            animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
             animal.UseSprint = false;
             animal.CanSprint = false;
@@ -441,6 +445,7 @@ namespace HorseRacing.Race
                 animal.DisablePosition = _originalAnimalDisablePosition;
                 animal.DisableRotation = _originalAnimalDisableRotation;
                 animal.RootMotion = _originalAnimalRootMotion;
+                animal.LockForwardMovement = _originalAnimalLockForwardMovement;
                 animal.LockUpDownMovement = _originalAnimalLockUpDownMovement;
             }
 

@@ -1,4 +1,5 @@
 using System.Collections;
+using System.Linq;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -60,7 +61,7 @@ namespace HorseRacing.Race.Tests
         }
 
         [UnityTest]
-        public IEnumerator SustainedSpam_MovesAlongSplineThenStopsAtIdle()
+        public IEnumerator KeyboardSpam_MovesWithLocomotionAnimationThenStopsAtIdle()
         {
             LogAssert.ignoreFailingMessages = true;
             try
@@ -70,18 +71,25 @@ namespace HorseRacing.Race.Tests
 
                 var driver = Object.FindFirstObjectByType<RaceSplineTapDriver>();
                 Assert.That(driver, Is.Not.Null);
+                var keyboard = InputSystem.AddDevice<Keyboard>();
                 yield return new WaitForEndOfFrame();
                 var startPosition = driver.transform.position;
 
                 var spamUntil = Time.realtimeSinceStartup + 1.25f;
                 while (Time.realtimeSinceStartup < spamUntil)
                 {
-                    driver.RegisterTap();
+                    Press(keyboard.wKey);
+                    yield return null;
+                    Release(keyboard.wKey);
                     yield return null;
                 }
 
                 yield return new WaitForEndOfFrame();
                 Assert.That(Vector3.Distance(driver.transform.position, startPosition), Is.GreaterThan(0.5f));
+                Assert.That(driver.animal.LockForwardMovement, Is.False);
+                Assert.That(driver.animal.VerticalSmooth, Is.GreaterThan(0.1f));
+                Assert.That(driver.animator.GetCurrentAnimatorClipInfo(0)
+                    .Any(info => info.clip && !info.clip.name.Contains("Idle")), Is.True);
 
                 var releaseTimeout = Time.realtimeSinceStartup + 4f;
                 while (driver.Effort > 0f && Time.realtimeSinceStartup < releaseTimeout)
