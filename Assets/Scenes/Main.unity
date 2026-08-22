@@ -6900,8 +6900,12 @@ PrefabInstance:
       value: 0.13745117
       objectReference: {fileID: 0}
     - target: {fileID: 7068845787389983708, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
-      propertyPath: m_IsKinematic
+      propertyPath: m_UseGravity
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7068845787389983708, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: m_IsKinematic
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7121936683252099590, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
       propertyPath: m_LocalPosition.x
@@ -7614,6 +7618,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 4119520939028466838, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5134015732527033597, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: AmplitudeGain
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -13843,6 +13851,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5114034451324180765, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6949209804260920180, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: AmplitudeGain
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -31158,6 +31170,14 @@ PrefabInstance:
       propertyPath: m_ReceiveShadows
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 3396501619372506956, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3764036645257208707, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4114788345834636964, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_ReceiveShadows
       value: 1
@@ -31170,6 +31190,30 @@ PrefabInstance:
       propertyPath: m_ReceiveShadows
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_active.ConstantValue
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_UseCamera.ConstantValue
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: OnAimSide.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: MalbersAnimations.Events.MEvent, MalbersAnimations
+      objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: OnAimRayTarget.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: MalbersAnimations.Events.MEvent, MalbersAnimations
+      objectReference: {fileID: 0}
+    - target: {fileID: 7559964780884759463, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: OnScreenCenter.m_PersistentCalls.m_Calls.Array.data[0].m_TargetAssemblyTypeName
+      value: MalbersAnimations.Events.MEvent, MalbersAnimations
+      objectReference: {fileID: 0}
     - target: {fileID: 7705564237750908772, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_CastShadows
       value: 1
@@ -31177,6 +31221,10 @@ PrefabInstance:
     - target: {fileID: 7705564237750908772, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_ReceiveShadows
       value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 8065877054108974954, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
+      propertyPath: m_IsActive
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 8207868491467196025, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_CastShadows
@@ -39454,6 +39502,94 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 6171961765324725097, guid: 66ffec643286e7542bd797a40eba0cd1, type: 3}
   m_PrefabInstance: {fileID: 1536127661}
   m_PrefabAsset: {fileID: 0}
+--- !u!1001 &1539748422
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 100158, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_Name
+      value: ArabianHorseJockey_Test
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 86.862
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 5.61995
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: -352.7
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 400138, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 100158, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1539748425}
+  m_SourcePrefab: {fileID: 100100000, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+--- !u!1 &1539748423 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 100158, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+  m_PrefabInstance: {fileID: 1539748422}
+  m_PrefabAsset: {fileID: 0}
+--- !u!111 &1539748424 stripped
+Animation:
+  m_CorrespondingSourceObject: {fileID: 11100000, guid: c4a25f10df15a0845b328d8544c2a143, type: 3}
+  m_PrefabInstance: {fileID: 1539748422}
+  m_PrefabAsset: {fileID: 0}
+--- !u!114 &1539748425
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1539748423}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b1f2f9319d1b5be4a9907025d45a5619, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::ArabianJockeyPreviewDriver
+  m_animation: {fileID: 1539748424}
+  m_walkSpeed: 0.8
+  m_trotSpeed: 1.4
+  m_gallopSpeed: 2.2
+  m_turnSpeed: 55
+  m_useIJKLKeys: 1
 --- !u!1001 &1541837894
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -43420,13 +43556,23 @@ MonoBehaviour:
   splineContainer: {fileID: 1425235638}
   animal: {fileID: 1729164394}
   animator: {fileID: 1729164392}
-  tapWindow: 1
+  tapKeys: 01000000250000003f000000
+  tapWindow: 0.85
   tapsPerSecondForMax: 6
-  decayPerSecond: 1.2
-  walkEnergy: 0.08
-  trotEnergy: 0.25
-  canterEnergy: 0.45
-  gallopEnergy: 0.7
+  accelSmoothTime: 0.22
+  coastSmoothTime: 0.55
+  walkAt: 0.08
+  trotAt: 0.28
+  canterAt: 0.52
+  gallopAt: 0.78
+  gaitHysteresis: 0.04
+  walkMetersPerSecond: 1.6
+  trotMetersPerSecond: 3.2
+  canterMetersPerSecond: 5.2
+  gallopMetersPerSecond: 7.2
+  travelAcceleration: 4.5
+  lookAheadMeters: 12
+  turnSmoothTime: 0.2
 --- !u!1001 &1729349638
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -64039,3 +64185,4 @@ SceneRoots:
   - {fileID: 1524903631}
   - {fileID: 1531220880}
   - {fileID: 1678949353}
+  - {fileID: 1539748422}
