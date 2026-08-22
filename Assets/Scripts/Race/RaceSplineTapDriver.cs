@@ -57,6 +57,7 @@ namespace HorseRacing.Race
         bool _originalAnimalDisablePosition;
         bool _originalAnimalDisableRotation;
         bool _originalAnimalRootMotion;
+        bool _originalAnimalLockUpDownMovement;
         bool _originalRigidbodyKinematic;
         bool _originalRigidbodyUseGravity;
         RigidbodyConstraints _originalRigidbodyConstraints;
@@ -147,6 +148,7 @@ namespace HorseRacing.Race
             _originalAnimalDisablePosition = animal.DisablePosition;
             _originalAnimalDisableRotation = animal.DisableRotation;
             _originalAnimalRootMotion = animal.RootMotion;
+            _originalAnimalLockUpDownMovement = animal.LockUpDownMovement;
             _originalAnimatorApplyRootMotion = animator.applyRootMotion;
             _originalAnimatorSpeed = animator.speed;
 
@@ -171,6 +173,7 @@ namespace HorseRacing.Race
             animal.DisableRotation = true;
             animal.UseCameraInput = false;
             animal.Strafe = false;
+            animal.LockUpDownMovement = true;
             animal.UseSprint = false;
             animal.CanSprint = false;
             animal.AlwaysForward = false;
@@ -278,6 +281,13 @@ namespace HorseRacing.Race
             DriveGait(_gait);
         }
 
+        void Start()
+        {
+            if (!_ready) return;
+            animal.Grounded = true;
+            DriveGait(0);
+        }
+
         void OnAnimatorMove()
         {
             if (_ready && _gait > 0 && animator)
@@ -302,6 +312,7 @@ namespace HorseRacing.Race
             animal.RootMotion = true;
             animal.UseCameraInput = false;
             animal.Strafe = false;
+            animal.LockUpDownMovement = true;
             animal.UseSprint = false;
             animal.CanSprint = false;
             animal.Sprint_Set(false);
@@ -312,14 +323,14 @@ namespace HorseRacing.Race
                 animal.SetInputAxis(Vector3.zero);
                 animal.StopMoving();
                 if (animal.ActiveState == null || animal.ActiveState.ID.ID != 0)
-                    animal.State_Activate(0);
+                    animal.State_Force(0);
                 return;
             }
 
             animal.AlwaysForward = true;
             animal.SetInputAxis(Vector3.forward);
             if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
-                animal.State_Activate(1);
+                animal.State_Force(1);
             if (animal.CurrentSpeedIndex != gait)
                 animal.Speed_CurrentIndex_Set(gait);
         }
@@ -397,6 +408,7 @@ namespace HorseRacing.Race
                 animal.DisablePosition = _originalAnimalDisablePosition;
                 animal.DisableRotation = _originalAnimalDisableRotation;
                 animal.RootMotion = _originalAnimalRootMotion;
+                animal.LockUpDownMovement = _originalAnimalLockUpDownMovement;
             }
 
             if (animator)

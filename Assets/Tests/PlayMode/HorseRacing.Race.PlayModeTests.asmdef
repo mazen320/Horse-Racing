@@ -3,6 +3,7 @@
   "rootNamespace": "HorseRacing.Race.Tests",
   "references": [
     "HorseRacing.Race",
+    "MalbersAnimations",
     "Unity.InputSystem",
     "Unity.InputSystem.TestFramework"
   ],
