@@ -43565,12 +43565,15 @@ MonoBehaviour:
   trotAt: 0.28
   canterAt: 0.52
   gallopAt: 0.78
-  gaitHysteresis: 0.04
+  sprintAt: 0.92
+  gaitHysteresis: 0.06
   walkMetersPerSecond: 1.6
   trotMetersPerSecond: 3.2
   canterMetersPerSecond: 5.2
   gallopMetersPerSecond: 7.2
+  sprintMetersPerSecond: 8.5
   travelAcceleration: 4.5
+  travelDeceleration: 3
   lookAheadMeters: 12
   turnSmoothTime: 0.2
 --- !u!1001 &1729349638

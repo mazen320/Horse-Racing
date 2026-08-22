@@ -30,12 +30,13 @@ namespace HorseRacing.Race
         public float accelSmoothTime = 0.55f;
         public float coastSmoothTime = 1.25f;
 
-        [Header("Gait thresholds (effort 0..1) — Malbers Ground: 1 Walk … 4 Gallop")]
+        [Header("Gait thresholds (effort 0..1) — Malbers Ground: 1 Walk … 5 Sprint")]
         public float walkAt = 0.08f;
         public float trotAt = 0.28f;
         public float canterAt = 0.52f;
         public float gallopAt = 0.78f;
-        [SerializeField, Range(0f, 0.2f)] float gaitHysteresis = 0.04f;
+        public float sprintAt = 0.92f;
+        [SerializeField, Range(0f, 0.2f)] float gaitHysteresis = 0.06f;
 
         [Header("Track travel (meters/second)")]
         [Tooltip("Conservative fallback speeds for horse clips that animate in place.")]
@@ -43,8 +44,11 @@ namespace HorseRacing.Race
         public float trotMetersPerSecond = 3.2f;
         public float canterMetersPerSecond = 5.2f;
         public float gallopMetersPerSecond = 7.2f;
+        public float sprintMetersPerSecond = 8.5f;
         [Tooltip("How quickly track speed catches the selected gait.")]
         public float travelAcceleration = 4.5f;
+        [Tooltip("How quickly travel slows after effort drops.")]
+        public float travelDeceleration = 3f;
 
         [Header("Look ahead on track")]
         [Tooltip("How far ahead on the spline to look/face (meters).")]
@@ -62,6 +66,7 @@ namespace HorseRacing.Race
         float _normalizedT;
         float _yawVelocity;
         int _gait;
+        int _animationGait;
         bool _ready;
         bool _ownershipCaptured;
 
@@ -70,6 +75,8 @@ namespace HorseRacing.Race
         bool _originalAnimalRootMotion;
         bool _originalAnimalLockForwardMovement;
         bool _originalAnimalLockUpDownMovement;
+        bool _originalAnimalUseSprint;
+        bool _originalAnimalSprint;
         bool _originalRigidbodyKinematic;
         bool _originalRigidbodyUseGravity;
         RigidbodyConstraints _originalRigidbodyConstraints;
@@ -79,6 +86,9 @@ namespace HorseRacing.Race
         MalbersAnimations.Scriptables.BoolReference[] _originalMountInputSettings;
 
         public float Effort => _effortModel.Effort;
+        public float TravelSpeed => _travelSpeed.Speed;
+        public int RequestedGait => _gait;
+        public int AnimationGait => _animationGait;
 
         public void RegisterTap() => _effortModel.RegisterTap(Time.time);
 
@@ -99,13 +109,16 @@ namespace HorseRacing.Race
             trotAt = Mathf.Clamp(trotAt, walkAt, 1f);
             canterAt = Mathf.Clamp(canterAt, trotAt, 1f);
             gallopAt = Mathf.Clamp(gallopAt, canterAt, 1f);
+            sprintAt = Mathf.Clamp(sprintAt, gallopAt, 1f);
             gaitHysteresis = Mathf.Clamp(gaitHysteresis, 0f, 0.2f);
 
             walkMetersPerSecond = Mathf.Max(0f, walkMetersPerSecond);
             trotMetersPerSecond = Mathf.Max(walkMetersPerSecond, trotMetersPerSecond);
             canterMetersPerSecond = Mathf.Max(trotMetersPerSecond, canterMetersPerSecond);
             gallopMetersPerSecond = Mathf.Max(canterMetersPerSecond, gallopMetersPerSecond);
+            sprintMetersPerSecond = Mathf.Max(gallopMetersPerSecond, sprintMetersPerSecond);
             travelAcceleration = Mathf.Max(0.01f, travelAcceleration);
+            travelDeceleration = Mathf.Max(0.01f, travelDeceleration);
 
             lookAheadMeters = Mathf.Max(0f, lookAheadMeters);
             turnSmoothTime = Mathf.Max(0.01f, turnSmoothTime);
@@ -157,6 +170,7 @@ namespace HorseRacing.Race
             _rootMotion.Reset();
             _travelSpeed.Reset();
             _gait = 0;
+            _animationGait = 0;
             _normalizedT = NearestT(transform.position);
             _ready = true;
             ApplyPose(true);
@@ -169,6 +183,8 @@ namespace HorseRacing.Race
             _originalAnimalRootMotion = animal.RootMotion;
             _originalAnimalLockForwardMovement = animal.LockForwardMovement;
             _originalAnimalLockUpDownMovement = animal.LockUpDownMovement;
+            _originalAnimalUseSprint = animal.UseSprint;
+            _originalAnimalSprint = animal.Sprint;
             _originalAnimatorApplyRootMotion = animator.applyRootMotion;
             _originalAnimatorSpeed = animator.speed;
 
@@ -195,8 +211,8 @@ namespace HorseRacing.Race
             animal.Strafe = false;
             animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
-            animal.UseSprint = false;
-            animal.CanSprint = false;
+            animal.UseSprint = true;
+            animal.CanSprint = true;
             animal.AlwaysForward = false;
             animal.Sprint_Set(false);
             animal.SetAnimatorSpeed(1f);
@@ -298,8 +314,11 @@ namespace HorseRacing.Race
             _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
                 accelSmoothTime, coastSmoothTime);
             _gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
-                walkAt, trotAt, canterAt, gallopAt, gaitHysteresis);
-            DriveGait(_gait);
+                walkAt, trotAt, canterAt, gallopAt, sprintAt, gaitHysteresis);
+            _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
+                _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
+                canterMetersPerSecond, gallopMetersPerSecond, sprintMetersPerSecond);
+            DriveGait(_animationGait);
         }
 
         void Start()
@@ -311,7 +330,7 @@ namespace HorseRacing.Race
 
         void OnAnimatorMove()
         {
-            if (_ready && _gait > 0 && animator)
+            if (_ready && _animationGait > 0 && animator)
                 _rootMotion.Add(animator.deltaPosition);
         }
 
@@ -323,16 +342,21 @@ namespace HorseRacing.Race
             var nativeDistance = _rootMotion.Consume();
             var fallbackDistance = _travelSpeed.Step(_gait, deltaTime,
                 walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
-                gallopMetersPerSecond, travelAcceleration);
+                gallopMetersPerSecond, sprintMetersPerSecond,
+                travelAcceleration, travelDeceleration);
 
             // Some horse packs use true root motion, while this preferred horse's
             // clips animate in place. Never combine both sources or travel doubles.
-            var maxNativeDistance = gallopMetersPerSecond * Mathf.Max(0f, deltaTime);
             var distance = nativeDistance > 0.00001f
-                ? Mathf.Min(nativeDistance, maxNativeDistance)
+                ? Mathf.Min(nativeDistance, fallbackDistance)
                 : fallbackDistance;
             if (nativeDistance > 0.00001f)
                 _travelSpeed.FollowNative(distance, deltaTime);
+
+            _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
+                _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
+                canterMetersPerSecond, gallopMetersPerSecond, sprintMetersPerSecond);
+            DriveGait(_animationGait);
 
             if (distance > 0.00001f)
                 _normalizedT = Mathf.Repeat(_normalizedT + distance / _splineLength, 1f);
@@ -349,13 +373,13 @@ namespace HorseRacing.Race
             animal.Strafe = false;
             animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
-            animal.UseSprint = false;
-            animal.CanSprint = false;
-            animal.Sprint_Set(false);
+            animal.UseSprint = true;
+            animal.CanSprint = true;
 
             if (gait <= 0)
             {
                 animal.AlwaysForward = false;
+                animal.Sprint_Set(false);
                 animal.SetInputAxis(Vector3.zero);
                 animal.StopMoving();
                 if (animal.ActiveState == null || animal.ActiveState.ID.ID != 0)
@@ -367,8 +391,19 @@ namespace HorseRacing.Race
             animal.SetInputAxis(Vector3.forward);
             if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
                 animal.State_Force(1);
-            if (animal.CurrentSpeedIndex != gait)
-                animal.Speed_CurrentIndex_Set(gait);
+
+            if (gait >= 5)
+            {
+                if (!animal.Sprint && animal.CurrentSpeedIndex != 4)
+                    animal.Speed_CurrentIndex_Set(4);
+                animal.Sprint_Set(true);
+            }
+            else
+            {
+                animal.Sprint_Set(false);
+                if (animal.CurrentSpeedIndex != gait)
+                    animal.Speed_CurrentIndex_Set(gait);
+            }
         }
 
         void ApplyPose(bool instant)
@@ -432,6 +467,7 @@ namespace HorseRacing.Race
         {
             _ready = false;
             _gait = 0;
+            _animationGait = 0;
             _effortModel.Reset();
             _rootMotion.Reset();
             _travelSpeed.Reset();
@@ -440,8 +476,11 @@ namespace HorseRacing.Race
 
             if (animal)
             {
+                animal.Sprint_Set(false);
                 animal.SetInputAxis(Vector3.zero);
                 animal.StopMoving();
+                animal.UseSprint = _originalAnimalUseSprint;
+                if (_originalAnimalSprint) animal.Sprint_Set(true);
                 animal.DisablePosition = _originalAnimalDisablePosition;
                 animal.DisableRotation = _originalAnimalDisableRotation;
                 animal.RootMotion = _originalAnimalRootMotion;

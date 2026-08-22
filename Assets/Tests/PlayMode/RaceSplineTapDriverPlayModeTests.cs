@@ -75,7 +75,7 @@ namespace HorseRacing.Race.Tests
                 yield return new WaitForEndOfFrame();
                 var startPosition = driver.transform.position;
 
-                var spamUntil = Time.realtimeSinceStartup + 1.25f;
+                var spamUntil = Time.realtimeSinceStartup + 2.25f;
                 while (Time.realtimeSinceStartup < spamUntil)
                 {
                     Press(keyboard.wKey);
@@ -88,15 +88,40 @@ namespace HorseRacing.Race.Tests
                 Assert.That(Vector3.Distance(driver.transform.position, startPosition), Is.GreaterThan(0.5f));
                 Assert.That(driver.animal.LockForwardMovement, Is.False);
                 Assert.That(driver.animal.VerticalSmooth, Is.GreaterThan(0.1f));
+                Assert.That(driver.RequestedGait, Is.EqualTo(5));
+                Assert.That(driver.AnimationGait, Is.EqualTo(5));
+                Assert.That(driver.TravelSpeed, Is.GreaterThan(driver.gallopMetersPerSecond));
+                Assert.That(driver.animal.CanSprint, Is.True);
+                Assert.That(driver.animal.Sprint, Is.True);
+                Assert.That(driver.animal.CurrentSpeedIndex,
+                    Is.EqualTo(driver.animal.CurrentSpeedSet.SprintIndex));
                 Assert.That(driver.animator.GetCurrentAnimatorClipInfo(0)
                     .Any(info => info.clip && !info.clip.name.Contains("Idle")), Is.True);
 
-                var releaseTimeout = Time.realtimeSinceStartup + 4f;
-                while (driver.Effort > 0f && Time.realtimeSinceStartup < releaseTimeout)
+                var releasePosition = driver.transform.position;
+                yield return null;
+                yield return new WaitForEndOfFrame();
+                Assert.That(driver.TravelSpeed, Is.GreaterThan(0f));
+                Assert.That(driver.AnimationGait, Is.GreaterThan(0));
+                Assert.That(Vector3.Distance(driver.transform.position, releasePosition), Is.GreaterThan(0f));
+
+                var coastTimeout = Time.realtimeSinceStartup + 3f;
+                while (driver.RequestedGait >= 5 && Time.realtimeSinceStartup < coastTimeout)
+                    yield return null;
+                var coastSpeed = driver.TravelSpeed;
+                yield return new WaitForSecondsRealtime(0.1f);
+                Assert.That(driver.TravelSpeed, Is.LessThan(coastSpeed));
+
+                var releaseTimeout = Time.realtimeSinceStartup + 8f;
+                while ((driver.Effort > 0f || driver.TravelSpeed > 0f) &&
+                       Time.realtimeSinceStartup < releaseTimeout)
                     yield return null;
 
                 yield return new WaitForEndOfFrame();
                 Assert.That(driver.Effort, Is.Zero.Within(0.0001f));
+                Assert.That(driver.TravelSpeed, Is.Zero.Within(0.0001f));
+                Assert.That(driver.AnimationGait, Is.Zero);
+                Assert.That(driver.animal.ActiveState.ID.ID, Is.EqualTo(0));
                 var stoppedPosition = driver.transform.position;
                 yield return new WaitForSecondsRealtime(0.25f);
                 yield return new WaitForEndOfFrame();
