@@ -1,273 +1,433 @@
-using System.Collections.Generic;
+using System;
 using MalbersAnimations.Controller;
+using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.Splines;
 
-/// <summary>
-/// Tap rate selects Malbers gait (Walk→Sprint). Malbers keeps full root-motion
-/// locomotion feel; we only redirect that travel distance along RaceTrackSpline.
-/// Horse faces spline tangent (not camera).
-/// </summary>
-[DefaultExecutionOrder(100)] // after MAnimal
-public class RaceSplineTapDriver : MonoBehaviour
+namespace HorseRacing.Race
 {
-    [Header("Refs")]
-    public SplineContainer splineContainer;
-    public MAnimal animal;
-    public Animator animator;
-
-    [Header("Tap")]
-    public float tapWindow = 1.0f;
-    public float tapsPerSecondForMax = 5f;
-    public float decayPerSecond = 0.7f;
-
-    [Header("Gait energy bands (0..1)")]
-    public float walkEnergy = 0.08f;
-    public float trotEnergy = 0.25f;
-    public float canterEnergy = 0.45f;
-    public float gallopEnergy = 0.7f;
-
-    readonly List<float> _tapTimes = new List<float>(64);
-    float _energy;
-    float _normalizedT;
-    float _splineLength = 1f;
-    int _gaitIndex;
-    float _lastSpeed;
-
-    void Reset()
+    /// <summary>
+    /// Keyboard taps select a Malbers gait. Native animation root motion supplies
+    /// distance, while this component exclusively owns world position and yaw.
+    /// </summary>
+    [DisallowMultipleComponent]
+    [DefaultExecutionOrder(100)]
+    public sealed class RaceSplineTapDriver : MonoBehaviour
     {
-        animal = GetComponent<MAnimal>();
-        animator = GetComponent<Animator>();
-    }
+        [Header("Refs")]
+        public SplineContainer splineContainer;
+        public MAnimal animal;
+        public Animator animator;
 
-    void Awake()
-    {
-        if (!animal) animal = GetComponent<MAnimal>();
-        if (!animator) animator = GetComponent<Animator>();
+        [Header("Keyboard tap bindings")]
+        [SerializeField] Key[] tapKeys = { Key.Space, Key.W, Key.UpArrow };
 
-        if (!splineContainer)
+        [Header("Tap effort (smooth)")]
+        public float tapWindow = 1f;
+        public float tapsPerSecondForMax = 4.5f;
+        public float accelSmoothTime = 0.55f;
+        public float coastSmoothTime = 1.25f;
+
+        [Header("Gait thresholds (effort 0..1) — Malbers Ground: 1 Walk … 4 Gallop")]
+        public float walkAt = 0.08f;
+        public float trotAt = 0.28f;
+        public float canterAt = 0.52f;
+        public float gallopAt = 0.78f;
+        [SerializeField, Range(0f, 0.2f)] float gaitHysteresis = 0.04f;
+
+        [Header("Look ahead on track")]
+        [Tooltip("How far ahead on the spline to look/face (meters).")]
+        public float lookAheadMeters = 16f;
+        public float turnSmoothTime = 0.32f;
+
+        readonly TapEffortModel _effortModel = new TapEffortModel();
+        readonly RootMotionDistanceAccumulator _rootMotion = new RootMotionDistanceAccumulator();
+        readonly ConfigurableKeyboardTapInput _keyboardInput = new ConfigurableKeyboardTapInput();
+
+        Rigidbody _rigidbody;
+        Spline _spline;
+        float _splineLength = 1f;
+        float _normalizedT;
+        float _yawVelocity;
+        int _gait;
+        bool _ready;
+        bool _ownershipCaptured;
+
+        bool _originalAnimalDisablePosition;
+        bool _originalAnimalDisableRotation;
+        bool _originalAnimalRootMotion;
+        bool _originalRigidbodyKinematic;
+        bool _originalRigidbodyUseGravity;
+        RigidbodyConstraints _originalRigidbodyConstraints;
+        bool _originalAnimatorApplyRootMotion;
+        float _originalAnimatorSpeed;
+        MalbersAnimations.HAP.Mount[] _mounts;
+        MalbersAnimations.Scriptables.BoolReference[] _originalMountInputSettings;
+
+        public float Effort => _effortModel.Effort;
+
+        public void RegisterTap() => _effortModel.RegisterTap(Time.time);
+
+        void Reset()
         {
-            var go = GameObject.Find("RaceTrackSpline");
-            if (go) splineContainer = go.GetComponent<SplineContainer>();
+            animal = GetComponent<MAnimal>();
+            animator = GetComponent<Animator>();
         }
 
-        var sa = GetComponent<SplineAnimate>();
-        if (sa) sa.enabled = false;
-
-        var rb = GetComponent<Rigidbody>();
-        if (rb)
+        void OnValidate()
         {
-            rb.isKinematic = true;
-            rb.useGravity = false;
+            tapWindow = Mathf.Max(0.05f, tapWindow);
+            tapsPerSecondForMax = Mathf.Max(0.1f, tapsPerSecondForMax);
+            accelSmoothTime = Mathf.Max(0f, accelSmoothTime);
+            coastSmoothTime = Mathf.Max(0f, coastSmoothTime);
+
+            walkAt = Mathf.Clamp01(walkAt);
+            trotAt = Mathf.Clamp(trotAt, walkAt, 1f);
+            canterAt = Mathf.Clamp(canterAt, trotAt, 1f);
+            gallopAt = Mathf.Clamp(gallopAt, canterAt, 1f);
+            gaitHysteresis = Mathf.Clamp(gaitHysteresis, 0f, 0.2f);
+
+            lookAheadMeters = Mathf.Max(0f, lookAheadMeters);
+            turnSmoothTime = Mathf.Max(0.01f, turnSmoothTime);
+
+            if (Application.isPlaying)
+                _keyboardInput.SetBindings(tapKeys);
         }
 
-        // Keep Malbers walk/run feel — root motion stays on.
-        if (animator)
-            animator.applyRootMotion = true;
-
-        if (animal)
+        void Awake()
         {
+            if (!animal) animal = GetComponent<MAnimal>();
+            if (!animator) animator = GetComponent<Animator>();
+            _rigidbody = GetComponent<Rigidbody>();
+
+            if (!splineContainer)
+            {
+                var splineObject = GameObject.Find("RaceTrackSpline");
+                if (splineObject) splineContainer = splineObject.GetComponent<SplineContainer>();
+            }
+
+            _spline = splineContainer != null ? splineContainer.Spline : null;
+            if (!animal || !animator || splineContainer == null || _spline == null || _spline.Count < 2)
+            {
+                Debug.LogError(
+                    "RaceSplineTapDriver requires MAnimal, Animator, and a RaceTrackSpline with at least two knots.",
+                    this);
+                enabled = false;
+                return;
+            }
+
+            var calculatedLength = splineContainer.CalculateLength();
+            if (calculatedLength <= 0.01f || float.IsNaN(calculatedLength) || float.IsInfinity(calculatedLength))
+            {
+                Debug.LogError("RaceSplineTapDriver cannot run because RaceTrackSpline has invalid length.", this);
+                enabled = false;
+                return;
+            }
+
+            _splineLength = calculatedLength;
+            _keyboardInput.SetBindings(tapKeys);
+
+            CaptureOwnership();
+            ConfigureMovementOwnership();
+            DisableExternalControllers(transform);
+            DisableStamina(transform);
+            MuteHorseAudio(transform);
+
+            _effortModel.Reset();
+            _rootMotion.Reset();
+            _gait = 0;
+            _normalizedT = NearestT(transform.position);
+            _ready = true;
+            ApplyPose(true);
+        }
+
+        void CaptureOwnership()
+        {
+            _originalAnimalDisablePosition = animal.DisablePosition;
+            _originalAnimalDisableRotation = animal.DisableRotation;
+            _originalAnimalRootMotion = animal.RootMotion;
+            _originalAnimatorApplyRootMotion = animator.applyRootMotion;
+            _originalAnimatorSpeed = animator.speed;
+
+            if (_rigidbody)
+            {
+                _originalRigidbodyKinematic = _rigidbody.isKinematic;
+                _originalRigidbodyUseGravity = _rigidbody.useGravity;
+                _originalRigidbodyConstraints = _rigidbody.constraints;
+            }
+
+            _ownershipCaptured = true;
+        }
+
+        void ConfigureMovementOwnership()
+        {
+            var splineAnimate = GetComponent<SplineAnimate>();
+            if (splineAnimate) splineAnimate.enabled = false;
+
             animal.enabled = true;
             animal.RootMotion = true;
-            animal.UseCameraInput = false; // not camera-relative
-            animal.LockMovement = false;
-            animal.LockForwardMovement = false;
-            animal.LockHorizontalMovement = true;
-            animal.LockUpDownMovement = true;
-            animal.Grounded = true;
-            animal.UseSprint = true;
+            animal.DisablePosition = true;
+            animal.DisableRotation = true;
+            animal.UseCameraInput = false;
             animal.Strafe = false;
+            animal.UseSprint = false;
+            animal.CanSprint = false;
             animal.AlwaysForward = false;
-        }
+            animal.Sprint_Set(false);
+            animal.SetAnimatorSpeed(1f);
 
-        var aim = GetComponent<MalbersAnimations.Aim>();
-        if (aim) aim.enabled = false;
+            animator.applyRootMotion = true;
+            animator.speed = 1f;
 
-        var input = GetComponent<MalbersAnimations.InputSystem.MInputLink>();
-        if (input) input.enabled = false;
-
-        var ai = GetComponentInChildren<MalbersAnimations.Controller.AI.MAnimalAIControl>(true);
-        if (ai) ai.enabled = false;
-
-        RecacheLength();
-        _normalizedT = 0f;
-        SnapToSpline();
-    }
-
-    void RecacheLength()
-    {
-        if (splineContainer != null && splineContainer.Spline != null && splineContainer.Spline.Count > 1)
-            _splineLength = Mathf.Max(1f, splineContainer.CalculateLength());
-        else
-            _splineLength = 1f;
-    }
-
-    void Update()
-    {
-        if (WasTapThisFrame())
-            RegisterTap();
-
-        PruneOldTaps();
-
-        float tps = _tapTimes.Count / Mathf.Max(0.05f, tapWindow);
-        float targetEnergy = Mathf.Clamp01(tps / Mathf.Max(0.1f, tapsPerSecondForMax));
-
-        if (targetEnergy > _energy)
-            _energy = targetEnergy;
-        else
-            _energy = Mathf.MoveTowards(_energy, targetEnergy, decayPerSecond * Time.deltaTime);
-
-        _gaitIndex = ResolveGait(_energy);
-        ApplyGait(_gaitIndex);
-    }
-
-    void LateUpdate()
-    {
-        if (splineContainer == null) return;
-
-        // Prefer animator root-motion delta (native stride). Fall back to Malbers speed.
-        float dist = 0f;
-        if (animator != null)
-            dist = animator.deltaPosition.magnitude;
-
-        if (dist < 0.00001f && animal != null)
-        {
-            if (animal.DeltaPos.sqrMagnitude > 0.0000001f)
-                dist = animal.DeltaPos.magnitude;
-            else if (animal.HorizontalSpeed > 0.01f)
-                dist = animal.HorizontalSpeed * Time.deltaTime;
-        }
-
-        if (_gaitIndex > 0 && dist > 0.00001f && _splineLength > 1f)
-        {
-            _normalizedT += dist / _splineLength;
-            while (_normalizedT >= 1f) _normalizedT -= 1f;
-            _lastSpeed = dist / Mathf.Max(Time.deltaTime, 0.0001f);
-        }
-        else
-        {
-            _lastSpeed = 0f;
-        }
-
-        SnapToSpline();
-
-        // Keep Malbers' internal last-pos in sync after we teleport onto the spline
-        if (animal != null)
-            animal.Teleport(transform.position);
-    }
-
-    void SnapToSpline()
-    {
-        if (splineContainer == null) return;
-
-        float t = Mathf.Repeat(_normalizedT, 1f);
-        var pos = (Vector3)splineContainer.EvaluatePosition(t);
-        var tan = EvaluateTangentSafe(t);
-        transform.position = pos;
-        if (tan.sqrMagnitude > 0.0001f)
-            transform.rotation = Quaternion.LookRotation(tan.normalized, Vector3.up);
-    }
-
-    Vector3 EvaluateTangentSafe(float t)
-    {
-        var tan = (Vector3)splineContainer.EvaluateTangent(t);
-        if (tan.sqrMagnitude > 0.0001f)
-            return tan;
-
-        // Linear knots can yield zero tangent — sample nearby
-        for (int i = 1; i <= 8; i++)
-        {
-            float dt = i * 0.002f;
-            tan = (Vector3)splineContainer.EvaluateTangent(Mathf.Repeat(t + dt, 1f));
-            if (tan.sqrMagnitude > 0.0001f) return tan;
-            tan = (Vector3)splineContainer.EvaluateTangent(Mathf.Repeat(t - dt + 1f, 1f));
-            if (tan.sqrMagnitude > 0.0001f) return tan;
-        }
-
-        var a = (Vector3)splineContainer.EvaluatePosition(Mathf.Repeat(t, 1f));
-        var b = (Vector3)splineContainer.EvaluatePosition(Mathf.Repeat(t + 0.01f, 1f));
-        return b - a;
-    }
-
-    public void RegisterTap()
-    {
-        _tapTimes.Add(Time.time);
-    }
-
-    int ResolveGait(float energy)
-    {
-        if (energy < walkEnergy) return 0;
-        if (energy < trotEnergy) return 1;
-        if (energy < canterEnergy) return 2;
-        if (energy < gallopEnergy) return 3;
-        if (energy < 0.9f) return 4;
-        return 5;
-    }
-
-    void ApplyGait(int gait)
-    {
-        if (animal == null || !animal.enabled) return;
-
-        animal.Grounded = true;
-        animal.UseCameraInput = false;
-        animal.Strafe = false;
-
-        if (gait <= 0)
-        {
-            animal.AlwaysForward = false;
-            animal.SetInputAxis(Vector3.zero);
-            animal.StopMoving();
-            if (animal.ActiveState == null || animal.ActiveState.ID.ID != 0)
-                animal.State_Activate(0);
-            return;
-        }
-
-        // Native Malbers "keep going forward" — drives Vertical / locomotion blends
-        animal.AlwaysForward = true;
-
-        if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
-            animal.State_Activate(1);
-
-        int speedIndex = Mathf.Clamp(gait, 1, 5);
-        if (animal.CurrentSpeedIndex != speedIndex)
-            animal.Speed_CurrentIndex_Set(speedIndex);
-    }
-
-    void PruneOldTaps()
-    {
-        float cutoff = Time.time - tapWindow;
-        int remove = 0;
-        while (remove < _tapTimes.Count && _tapTimes[remove] < cutoff)
-            remove++;
-        if (remove > 0)
-            _tapTimes.RemoveRange(0, remove);
-    }
-
-    static bool WasTapThisFrame()
-    {
-        if (Keyboard.current != null &&
-            (Keyboard.current.spaceKey.wasPressedThisFrame ||
-             Keyboard.current.wKey.wasPressedThisFrame ||
-             Keyboard.current.upArrowKey.wasPressedThisFrame))
-            return true;
-
-        if (Mouse.current != null && Mouse.current.leftButton.wasPressedThisFrame)
-            return true;
-
-        if (Touchscreen.current != null)
-        {
-            foreach (var t in Touchscreen.current.touches)
+            if (_rigidbody)
             {
-                if (t.press.wasPressedThisFrame)
-                    return true;
+                _rigidbody.linearVelocity = Vector3.zero;
+                _rigidbody.angularVelocity = Vector3.zero;
+                _rigidbody.isKinematic = true;
+                _rigidbody.useGravity = false;
+                _rigidbody.constraints = RigidbodyConstraints.FreezeRotation;
             }
         }
 
-        return false;
-    }
+        void DisableExternalControllers(Transform root)
+        {
+            _mounts = root.GetComponentsInChildren<MalbersAnimations.HAP.Mount>(true);
+            _originalMountInputSettings = new MalbersAnimations.Scriptables.BoolReference[_mounts.Length];
+            for (var index = 0; index < _mounts.Length; index++)
+            {
+                _originalMountInputSettings[index] = _mounts[index].Set_InputMount;
+                _mounts[index].Set_InputMount = new MalbersAnimations.Scriptables.BoolReference(false);
+            }
 
-    public float Energy => _energy;
-    public float CurrentSpeed => _lastSpeed;
-    public int GaitIndex => _gaitIndex;
+            foreach (var ai in root.GetComponentsInChildren<MalbersAnimations.Controller.AI.MAnimalAIControl>(true))
+                ai.enabled = false;
+
+            foreach (var inputLink in root.GetComponentsInChildren<MalbersAnimations.InputSystem.MInputLink>(true))
+                inputLink.enabled = false;
+
+            foreach (var playerInput in root.GetComponentsInChildren<PlayerInput>(true))
+            {
+                if (!playerInput.enabled) continue;
+                try
+                {
+                    playerInput.enabled = false;
+                }
+                catch (ArgumentException)
+                {
+                    // Some third-party rider prefabs have an invalid unpaired-device
+                    // counter. Unity has already disabled the Behaviour before this throws.
+                }
+            }
+
+            foreach (var aim in root.GetComponentsInChildren<MalbersAnimations.Aim>(true))
+            {
+                aim.Active = false;
+                aim.UseCamera = false;
+                aim.enabled = false;
+            }
+
+            foreach (var lockOn in root.GetComponentsInChildren<MalbersAnimations.Utilities.LockOnTarget>(true))
+                lockOn.enabled = false;
+        }
+
+        static void DisableStamina(Transform root)
+        {
+            foreach (var stats in root.GetComponentsInChildren<MalbersAnimations.Stats>(true))
+            {
+                var stamina = stats.Stat_Get("Stamina");
+                if (stamina == null) continue;
+                stamina.SetActive(false);
+                stamina.SetDegeneration(false);
+                stamina.SetRegeneration(false);
+            }
+
+            foreach (var child in root.GetComponentsInChildren<Transform>(true))
+            {
+                if (child.name.IndexOf("Stamina", StringComparison.OrdinalIgnoreCase) >= 0)
+                    child.gameObject.SetActive(false);
+            }
+        }
+
+        static void MuteHorseAudio(Transform root)
+        {
+            foreach (var source in root.GetComponentsInChildren<AudioSource>(true))
+            {
+                source.Stop();
+                source.mute = true;
+                source.volume = 0f;
+                source.enabled = false;
+            }
+
+            foreach (var steps in root.GetComponentsInChildren<MalbersAnimations.StepsManager>(true))
+                steps.enabled = false;
+            foreach (var step in root.GetComponentsInChildren<MalbersAnimations.StepTrigger>(true))
+                step.enabled = false;
+        }
+
+        void Update()
+        {
+            if (!_ready) return;
+
+            if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
+
+            _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
+                accelSmoothTime, coastSmoothTime);
+            _gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
+                walkAt, trotAt, canterAt, gallopAt, gaitHysteresis);
+            DriveGait(_gait);
+        }
+
+        void OnAnimatorMove()
+        {
+            if (_ready && _gait > 0 && animator)
+                _rootMotion.Add(animator.deltaPosition);
+        }
+
+        void LateUpdate()
+        {
+            if (!_ready) return;
+
+            var distance = _rootMotion.Consume();
+            if (distance > 0.00001f)
+                _normalizedT = Mathf.Repeat(_normalizedT + distance / _splineLength, 1f);
+            ApplyPose(false);
+        }
+
+        void DriveGait(int gait)
+        {
+            if (!animal) return;
+
+            animal.Grounded = true;
+            animal.RootMotion = true;
+            animal.UseCameraInput = false;
+            animal.Strafe = false;
+            animal.UseSprint = false;
+            animal.CanSprint = false;
+            animal.Sprint_Set(false);
+
+            if (gait <= 0)
+            {
+                animal.AlwaysForward = false;
+                animal.SetInputAxis(Vector3.zero);
+                animal.StopMoving();
+                if (animal.ActiveState == null || animal.ActiveState.ID.ID != 0)
+                    animal.State_Activate(0);
+                return;
+            }
+
+            animal.AlwaysForward = true;
+            animal.SetInputAxis(Vector3.forward);
+            if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
+                animal.State_Activate(1);
+            if (animal.CurrentSpeedIndex != gait)
+                animal.Speed_CurrentIndex_Set(gait);
+        }
+
+        void ApplyPose(bool instant)
+        {
+            var t = Mathf.Repeat(_normalizedT, 1f);
+            transform.position = (Vector3)splineContainer.EvaluatePosition(t);
+
+            var look = LookAlongSpline(t);
+            var wantedYaw = Quaternion.LookRotation(look, Vector3.up).eulerAngles.y;
+            var yaw = transform.eulerAngles.y;
+
+            if (instant || Mathf.Abs(Mathf.DeltaAngle(yaw, wantedYaw)) > 45f)
+            {
+                yaw = wantedYaw;
+                _yawVelocity = 0f;
+            }
+            else
+            {
+                yaw = Mathf.SmoothDampAngle(yaw, wantedYaw, ref _yawVelocity, turnSmoothTime);
+            }
+
+            transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        Vector3 LookAlongSpline(float t)
+        {
+            var current = TrackForward(t);
+            var aheadT = Mathf.Repeat(t + lookAheadMeters / _splineLength, 1f);
+            var ahead = TrackForward(aheadT);
+
+            var look = Vector3.Slerp(current, ahead, 0.35f);
+            look.y = 0f;
+            if (look.sqrMagnitude < 0.0001f || Vector3.Dot(look, current) < 0.2f)
+                return current;
+            return look.normalized;
+        }
+
+        Vector3 TrackForward(float t)
+        {
+            var tangent = (Vector3)splineContainer.EvaluateTangent(Mathf.Repeat(t, 1f));
+            tangent.y = 0f;
+            if (tangent.sqrMagnitude > 0.0001f)
+                return tangent.normalized;
+
+            const float epsilon = 0.004f;
+            var start = (Vector3)splineContainer.EvaluatePosition(Mathf.Repeat(t, 1f));
+            var end = (Vector3)splineContainer.EvaluatePosition(Mathf.Repeat(t + epsilon, 1f));
+            var fallback = end - start;
+            fallback.y = 0f;
+            return fallback.sqrMagnitude > 0.0001f ? fallback.normalized : Vector3.forward;
+        }
+
+        float NearestT(Vector3 worldPosition)
+        {
+            var localPosition = (float3)splineContainer.transform.InverseTransformPoint(worldPosition);
+            SplineUtility.GetNearestPoint(_spline, localPosition, out _, out var t);
+            return math.saturate(t);
+        }
+
+        void OnDisable()
+        {
+            _ready = false;
+            _gait = 0;
+            _effortModel.Reset();
+            _rootMotion.Reset();
+
+            if (!_ownershipCaptured) return;
+
+            if (animal)
+            {
+                animal.SetInputAxis(Vector3.zero);
+                animal.StopMoving();
+                animal.DisablePosition = _originalAnimalDisablePosition;
+                animal.DisableRotation = _originalAnimalDisableRotation;
+                animal.RootMotion = _originalAnimalRootMotion;
+            }
+
+            if (animator)
+            {
+                animator.applyRootMotion = _originalAnimatorApplyRootMotion;
+                animator.speed = _originalAnimatorSpeed;
+            }
+
+            if (_rigidbody)
+            {
+                _rigidbody.isKinematic = _originalRigidbodyKinematic;
+                if (!_originalRigidbodyKinematic)
+                {
+                    _rigidbody.linearVelocity = Vector3.zero;
+                    _rigidbody.angularVelocity = Vector3.zero;
+                }
+                _rigidbody.useGravity = _originalRigidbodyUseGravity;
+                _rigidbody.constraints = _originalRigidbodyConstraints;
+            }
+
+            if (_mounts != null && _originalMountInputSettings != null)
+            {
+                var count = Mathf.Min(_mounts.Length, _originalMountInputSettings.Length);
+                for (var index = 0; index < count; index++)
+                {
+                    if (_mounts[index])
+                        _mounts[index].Set_InputMount = _originalMountInputSettings[index];
+                }
+            }
+
+            _ownershipCaptured = false;
+        }
+    }
 }
