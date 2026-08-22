@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Linq;
+using MalbersAnimations.HAP;
 using NUnit.Framework;
+using Unity.Cinemachine;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using UnityEngine.SceneManagement;
@@ -10,6 +12,36 @@ namespace HorseRacing.Race.Tests
 {
     public sealed class RaceSplineTapDriverPlayModeTests : InputTestFixture
     {
+        [UnityTest]
+        public IEnumerator RacePresentation_UsesRenderSynchronizedClocksAndTunedSprint()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                var load = SceneManager.LoadSceneAsync("Main", LoadSceneMode.Single);
+                while (!load.isDone) yield return null;
+                yield return new WaitForEndOfFrame();
+
+                var driver = Object.FindFirstObjectByType<RaceSplineTapDriver>();
+                var rider = Object.FindFirstObjectByType<MRider>();
+                var brain = Object.FindFirstObjectByType<CinemachineBrain>();
+
+                Assert.That(driver, Is.Not.Null);
+                Assert.That(rider, Is.Not.Null);
+                Assert.That(brain, Is.Not.Null);
+                Assert.That(driver.animator.updateMode, Is.EqualTo(AnimatorUpdateMode.Normal));
+                Assert.That(rider.Anim.updateMode, Is.EqualTo(AnimatorUpdateMode.Normal));
+                Assert.That(brain.UpdateMethod,
+                    Is.EqualTo(CinemachineBrain.UpdateMethods.LateUpdate));
+                Assert.That(driver.sprintMetersPerSecond,
+                    Is.EqualTo(9.25f).Within(0.001f));
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+        }
+
         [UnityTest]
         public IEnumerator HandsOff_RemainsIdleAndStationary()
         {

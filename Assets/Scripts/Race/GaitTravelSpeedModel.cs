@@ -7,7 +7,15 @@ namespace HorseRacing.Race
     /// </summary>
     public sealed class GaitTravelSpeedModel
     {
+        public const float MaximumRecommendedSprintSpeed = 10.5f;
+
         public float Speed { get; private set; }
+
+        public static float ClampSprintSpeed(float gallopSpeed, float sprintSpeed)
+        {
+            var minimum = Mathf.Clamp(gallopSpeed, 0f, MaximumRecommendedSprintSpeed);
+            return Mathf.Clamp(sprintSpeed, minimum, MaximumRecommendedSprintSpeed);
+        }
 
         public float Step(int gait, float deltaTime, float walkSpeed, float trotSpeed,
             float canterSpeed, float gallopSpeed, float acceleration)

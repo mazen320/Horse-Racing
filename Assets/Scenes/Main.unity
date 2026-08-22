@@ -19431,6 +19431,10 @@ PrefabInstance:
       propertyPath: m_BackGroundColor.r
       value: 0.4
       objectReference: {fileID: 0}
+    - target: {fileID: 114794346622778406, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
+      propertyPath: UpdateMethod
+      value: 1
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -43652,6 +43656,7 @@ MonoBehaviour:
   splineContainer: {fileID: 1425235638}
   animal: {fileID: 1729164394}
   animator: {fileID: 1729164392}
+  riderAnimator: {fileID: 0}
   tapKeys: 01000000250000003f000000
   tapWindow: 0.85
   tapsPerSecondForMax: 6
@@ -43663,11 +43668,12 @@ MonoBehaviour:
   gallopAt: 0.78
   sprintAt: 0.92
   gaitHysteresis: 0.06
+  useAnimationRootMotionDistance: 0
   walkMetersPerSecond: 1.6
   trotMetersPerSecond: 3.2
   canterMetersPerSecond: 5.2
   gallopMetersPerSecond: 7.2
-  sprintMetersPerSecond: 8.5
+  sprintMetersPerSecond: 9.25
   travelAcceleration: 4.5
   travelDeceleration: 3
   lookAheadMeters: 12

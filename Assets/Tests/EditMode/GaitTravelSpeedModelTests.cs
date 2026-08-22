@@ -24,6 +24,15 @@ namespace HorseRacing.Race.Tests
         }
 
         [Test]
+        public void SprintSpeed_IsBoundedForEventPresentation()
+        {
+            Assert.That(GaitTravelSpeedModel.ClampSprintSpeed(7.2f, 99f),
+                Is.EqualTo(10.5f));
+            Assert.That(GaitTravelSpeedModel.ClampSprintSpeed(7.2f, 6f),
+                Is.EqualTo(7.2f));
+        }
+
+        [Test]
         public void ReleasedInput_CoastsThenStopsExactly()
         {
             var model = new GaitTravelSpeedModel();

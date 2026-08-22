@@ -13,13 +13,14 @@ namespace HorseRacing.Race
     /// This component exclusively owns world position and yaw.
     /// </summary>
     [DisallowMultipleComponent]
-    [DefaultExecutionOrder(100)]
+    [DefaultExecutionOrder(-100)]
     public sealed class RaceSplineTapDriver : MonoBehaviour
     {
         [Header("Refs")]
         public SplineContainer splineContainer;
         public MAnimal animal;
         public Animator animator;
+        public Animator riderAnimator;
 
         [Header("Keyboard tap bindings")]
         [SerializeField] Key[] tapKeys = { Key.Space, Key.W, Key.UpArrow };
@@ -39,11 +40,15 @@ namespace HorseRacing.Race
         [SerializeField, Range(0f, 0.2f)] float gaitHysteresis = 0.06f;
 
         [Header("Track travel (meters/second)")]
+        [Tooltip("Use animation-authored distance only for clips with clean forward root motion. Keep disabled for the preferred in-place horse.")]
+        public bool useAnimationRootMotionDistance;
         [Tooltip("Conservative fallback speeds for horse clips that animate in place.")]
         public float walkMetersPerSecond = 1.6f;
         public float trotMetersPerSecond = 3.2f;
         public float canterMetersPerSecond = 5.2f;
         public float gallopMetersPerSecond = 7.2f;
+        [Tooltip("Safe event range. The existing Malbers Sprint clip runs at about 1.1x, matching a target near 9.25 m/s.")]
+        [Range(8.5f, GaitTravelSpeedModel.MaximumRecommendedSprintSpeed)]
         public float sprintMetersPerSecond = 8.5f;
         [Tooltip("How quickly track speed catches the selected gait.")]
         public float travelAcceleration = 4.5f;
@@ -82,6 +87,8 @@ namespace HorseRacing.Race
         RigidbodyConstraints _originalRigidbodyConstraints;
         bool _originalAnimatorApplyRootMotion;
         float _originalAnimatorSpeed;
+        AnimatorUpdateMode _originalAnimatorUpdateMode;
+        AnimatorUpdateMode _originalRiderAnimatorUpdateMode;
         MalbersAnimations.HAP.Mount[] _mounts;
         MalbersAnimations.Scriptables.BoolReference[] _originalMountInputSettings;
 
@@ -116,7 +123,8 @@ namespace HorseRacing.Race
             trotMetersPerSecond = Mathf.Max(walkMetersPerSecond, trotMetersPerSecond);
             canterMetersPerSecond = Mathf.Max(trotMetersPerSecond, canterMetersPerSecond);
             gallopMetersPerSecond = Mathf.Max(canterMetersPerSecond, gallopMetersPerSecond);
-            sprintMetersPerSecond = Mathf.Max(gallopMetersPerSecond, sprintMetersPerSecond);
+            sprintMetersPerSecond = GaitTravelSpeedModel.ClampSprintSpeed(
+                gallopMetersPerSecond, sprintMetersPerSecond);
             travelAcceleration = Mathf.Max(0.01f, travelAcceleration);
             travelDeceleration = Mathf.Max(0.01f, travelDeceleration);
 
@@ -131,6 +139,11 @@ namespace HorseRacing.Race
         {
             if (!animal) animal = GetComponent<MAnimal>();
             if (!animator) animator = GetComponent<Animator>();
+            if (!riderAnimator)
+            {
+                var rider = FindAnyObjectByType<MalbersAnimations.HAP.MRider>();
+                if (rider) riderAnimator = rider.Anim;
+            }
             _rigidbody = GetComponent<Rigidbody>();
 
             if (!splineContainer)
@@ -187,6 +200,9 @@ namespace HorseRacing.Race
             _originalAnimalSprint = animal.Sprint;
             _originalAnimatorApplyRootMotion = animator.applyRootMotion;
             _originalAnimatorSpeed = animator.speed;
+            _originalAnimatorUpdateMode = animator.updateMode;
+            if (riderAnimator)
+                _originalRiderAnimatorUpdateMode = riderAnimator.updateMode;
 
             if (_rigidbody)
             {
@@ -219,6 +235,9 @@ namespace HorseRacing.Race
 
             animator.applyRootMotion = true;
             animator.speed = 1f;
+            animator.updateMode = AnimatorUpdateMode.Normal;
+            if (riderAnimator)
+                riderAnimator.updateMode = AnimatorUpdateMode.Normal;
 
             if (_rigidbody)
             {
@@ -330,7 +349,7 @@ namespace HorseRacing.Race
 
         void OnAnimatorMove()
         {
-            if (_ready && _animationGait > 0 && animator)
+            if (_ready && useAnimationRootMotionDistance && _animationGait > 0 && animator)
                 _rootMotion.Add(animator.deltaPosition);
         }
 
@@ -339,7 +358,9 @@ namespace HorseRacing.Race
             if (!_ready) return;
 
             var deltaTime = Time.deltaTime;
-            var nativeDistance = _rootMotion.Consume();
+            var nativeDistance = useAnimationRootMotionDistance ? _rootMotion.Consume() : 0f;
+            if (!useAnimationRootMotionDistance)
+                _rootMotion.Reset();
             var fallbackDistance = _travelSpeed.Step(_gait, deltaTime,
                 walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
                 gallopMetersPerSecond, sprintMetersPerSecond,
@@ -492,7 +513,11 @@ namespace HorseRacing.Race
             {
                 animator.applyRootMotion = _originalAnimatorApplyRootMotion;
                 animator.speed = _originalAnimatorSpeed;
+                animator.updateMode = _originalAnimatorUpdateMode;
             }
+
+            if (riderAnimator)
+                riderAnimator.updateMode = _originalRiderAnimatorUpdateMode;
 
             if (_rigidbody)
             {
