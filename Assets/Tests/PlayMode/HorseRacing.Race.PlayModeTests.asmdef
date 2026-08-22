@@ -4,8 +4,11 @@
   "references": [
     "HorseRacing.Race",
     "MalbersAnimations",
+    "MalbersAnimations.Cinemachine",
+    "MalbersAnimations.InputSystem",
     "Unity.InputSystem",
-    "Unity.InputSystem.TestFramework"
+    "Unity.InputSystem.TestFramework",
+    "Unity.Cinemachine"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

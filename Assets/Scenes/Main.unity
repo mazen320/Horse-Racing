@@ -7580,6 +7580,18 @@ PrefabInstance:
       propertyPath: m_Name
       value: CM Third Person Main
       objectReference: {fileID: 0}
+    - target: {fileID: 4119520939028466837, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: cameraSide
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4119520939028466837, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: CameraDistance.ConstantValue
+      value: 6.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 4119520939028466837, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: AllowCameraRotation.ConstantValue
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4119520939028466838, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
       propertyPath: m_LocalPosition.x
       value: -6.535838
@@ -7620,8 +7632,44 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: Damping.x
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: Damping.y
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: Damping.z
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: CameraSide
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: CameraDistance
+      value: 6.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: ShoulderOffset.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: ShoulderOffset.y
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: VerticalArmLength
+      value: 0.8
+      objectReference: {fileID: 0}
     - target: {fileID: 5134015732527033597, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
       propertyPath: AmplitudeGain
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7355414786248832003, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -13809,6 +13857,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1531220880}
     m_Modifications:
+    - target: {fileID: -2480595431397710078, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: m_Enabled
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 5114034451324180762, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: m_Name
       value: CM Third Person Mount
@@ -13852,6 +13904,50 @@ PrefabInstance:
     - target: {fileID: 5114034451324180765, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5114034451324180766, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: cameraSide
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 5114034451324180766, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: CameraDistance.ConstantValue
+      value: 6.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 5114034451324180766, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: AllowCameraRotation.ConstantValue
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: Damping.x
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: Damping.y
+      value: 0.25
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: Damping.z
+      value: 0.15
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: CameraSide
+      value: 0.5
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: CameraDistance
+      value: 6.75
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: ShoulderOffset.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: ShoulderOffset.y
+      value: 0.2
+      objectReference: {fileID: 0}
+    - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: VerticalArmLength
+      value: 0.8
       objectReference: {fileID: 0}
     - target: {fileID: 6949209804260920180, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: AmplitudeGain
