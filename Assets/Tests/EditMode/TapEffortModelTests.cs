@@ -30,9 +30,20 @@ namespace HorseRacing.Race.Tests
         [Test]
         public void SelectGait_UsesLowerThresholdWhenDropping()
         {
-            Assert.That(TapEffortModel.SelectGait(0.28f, 1, 0.08f, 0.28f, 0.52f, 0.78f, 0.05f), Is.EqualTo(2));
-            Assert.That(TapEffortModel.SelectGait(0.25f, 2, 0.08f, 0.28f, 0.52f, 0.78f, 0.05f), Is.EqualTo(2));
-            Assert.That(TapEffortModel.SelectGait(0.22f, 2, 0.08f, 0.28f, 0.52f, 0.78f, 0.05f), Is.EqualTo(1));
+            Assert.That(TapEffortModel.SelectGait(0.28f, 1, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.05f), Is.EqualTo(2));
+            Assert.That(TapEffortModel.SelectGait(0.25f, 2, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.05f), Is.EqualTo(2));
+            Assert.That(TapEffortModel.SelectGait(0.22f, 2, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.05f), Is.EqualTo(1));
+        }
+
+        [Test]
+        public void SelectGait_SprintUsesSeparateExitThreshold()
+        {
+            Assert.That(TapEffortModel.SelectGait(
+                0.92f, 4, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.06f), Is.EqualTo(5));
+            Assert.That(TapEffortModel.SelectGait(
+                0.87f, 5, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.06f), Is.EqualTo(5));
+            Assert.That(TapEffortModel.SelectGait(
+                0.85f, 5, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.06f), Is.EqualTo(4));
         }
     }
 }

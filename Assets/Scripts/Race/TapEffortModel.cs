@@ -43,26 +43,36 @@ namespace HorseRacing.Race
         public static int SelectGait(float effort, int gait, float walkAt,
             float trotAt, float canterAt, float gallopAt, float hysteresis)
         {
+            return SelectGait(effort, gait, walkAt, trotAt, canterAt, gallopAt,
+                float.PositiveInfinity, hysteresis);
+        }
+
+        public static int SelectGait(float effort, int gait, float walkAt,
+            float trotAt, float canterAt, float gallopAt, float sprintAt, float hysteresis)
+        {
             effort = Mathf.Clamp01(effort);
-            gait = Mathf.Clamp(gait, 0, 4);
+            gait = Mathf.Clamp(gait, 0, 5);
             hysteresis = Mathf.Max(0f, hysteresis);
 
-            while (gait < 4 && effort >= Threshold(gait + 1, walkAt, trotAt, canterAt, gallopAt))
+            while (gait < 5 && effort >= Threshold(
+                       gait + 1, walkAt, trotAt, canterAt, gallopAt, sprintAt))
                 gait++;
             while (gait > 0 && effort < Mathf.Max(0f,
-                       Threshold(gait, walkAt, trotAt, canterAt, gallopAt) - hysteresis))
+                       Threshold(gait, walkAt, trotAt, canterAt, gallopAt, sprintAt) - hysteresis))
                 gait--;
             return gait;
         }
 
-        static float Threshold(int gait, float walkAt, float trotAt, float canterAt, float gallopAt)
+        static float Threshold(int gait, float walkAt, float trotAt, float canterAt,
+            float gallopAt, float sprintAt)
         {
             switch (gait)
             {
                 case 1: return walkAt;
                 case 2: return trotAt;
                 case 3: return canterAt;
-                default: return gallopAt;
+                case 4: return gallopAt;
+                default: return sprintAt;
             }
         }
 
