@@ -2,7 +2,7 @@
 
 ## Goal
 
-Keep the camera polished, readable, and directly behind the preferred horse through the full spline, especially during Sprint turns. Build the player-one rig so a second independent rig can later render a side-by-side competition view.
+Keep the camera polished, readable, and directly behind the preferred horse through the full spline, especially during Sprint turns. Retain bounded chase movement so the view feels responsive instead of mechanically fixed, and frame the full horse down to its hooves. Build the player-one rig so a second independent rig can later render a side-by-side competition view.
 
 ## Root cause
 
@@ -29,12 +29,14 @@ The active Cinemachine camera tracks this pivot directly. Malbers `ThirdPersonFo
 
 - Use `CM Third Person Mount` as player one's live Cinemachine camera.
 - Keep camera centered: `CameraSide = 0.5`, no horizontal shoulder offset.
-- Start with `CameraDistance = 7.25 m`, `VerticalArmLength = 1.0 m`, and `FieldOfView = 45 degrees`.
-- Use light Third Person Follow damping near `(0.08, 0.14, 0.08)` so the horse remains readable without a rigid camera feel.
+- Use a close premium chase composition: `CameraDistance = 6.5 m`, zero shoulder offset, `VerticalArmLength = 0.25 m`, and a base `FieldOfView = 42.5 degrees`. This keeps the full high-poly horse and hooves visible without the detached spectator look of a wide lens.
+- Use bounded Third Person Follow damping near `(0.18, 0.24, 0.18)` for soft chase movement without random shake or side-view drift.
 - Keep collision avoidance enabled, with small non-zero damping into and out of collision to prevent camera pops.
 - Keep Brain and target evaluation on the render clock (`LateUpdate`).
 - Disable camera noise and external impulse response for the event race.
-- Do not add motion blur, camera roll, sprint zoom, or FOV pumping.
+- Use one-refresh VSync on every quality level. Uncapped rendering can create visible screen tearing during animated limbs and lateral turn motion even when post-process motion blur is disabled.
+- Preserve the event camera clip range at `0.1-5000 m`; accidental near-zero clip planes blank the racecourse and make framing validation meaningless.
+- Use only a restrained speed lens response from `42.5` to `44.5 degrees`, blended over `0.45 s` above gallop speed. Do not add motion blur, camera roll, shake, or oscillatory FOV pumping.
 
 All presentation values remain serialized and safe to tune in the Inspector after live testing.
 
@@ -58,7 +60,7 @@ Player-one behavior stays unchanged when player two is later added. Side-by-side
 ## Verification
 
 - EditMode tests verify heading smoothing never exceeds the eight-degree lag cap and snaps safely across large discontinuities.
-- PlayMode tests load `Main` and verify the live camera uses the dedicated target, Malbers rotation/input ownership is disabled, Brain uses `LateUpdate`, camera noise and impulse response are zero, and framing matches the event preset.
+- PlayMode tests load `Main` and verify the live camera uses the dedicated target and speed source, Malbers rotation/input ownership is disabled, Brain uses `LateUpdate`, camera noise and impulse response are zero, and framing/lens values match the premium event preset.
 - Existing input, coast, Sprint, animation, and camera tests remain green.
 - Live Unity MCP testing drives Sprint through the spline's highest-curvature bend and records camera-to-horse yaw error. Expected maximum: eight degrees, with no side view or large catch-up rotation.
 - Capture a moving turn screenshot and inspect horse centering, horizon stability, and background clarity before commit and push.

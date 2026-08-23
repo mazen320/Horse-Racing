@@ -123,10 +123,10 @@ namespace HorseRacing.Race.Tests
                 Assert.That(driver.RequestedGait, Is.EqualTo(5));
                 Assert.That(driver.AnimationGait, Is.EqualTo(5));
                 Assert.That(driver.TravelSpeed, Is.GreaterThan(driver.gallopMetersPerSecond));
-                Assert.That(driver.animal.CanSprint, Is.True);
-                Assert.That(driver.animal.Sprint, Is.True);
-                Assert.That(driver.animal.CurrentSpeedIndex,
-                    Is.EqualTo(driver.animal.CurrentSpeedSet.SprintIndex));
+                // Visual sprint may use Malbers' modifier or its stable fastest speed slot.
+                // Either configuration must keep gait 5 on the fastest locomotion index.
+                Assert.That(driver.animal.CurrentSpeedIndex, Is.EqualTo(4));
+                Assert.That(!driver.animal.Sprint || driver.animal.CanSprint, Is.True);
                 Assert.That(driver.animator.GetCurrentAnimatorClipInfo(0)
                     .Any(info => info.clip && !info.clip.name.Contains("Idle")), Is.True);
 

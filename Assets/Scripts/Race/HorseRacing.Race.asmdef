@@ -4,6 +4,7 @@
   "references": [
     "MalbersAnimations",
     "MalbersAnimations.InputSystem",
+    "Unity.Cinemachine",
     "Unity.InputSystem",
     "Unity.Mathematics",
     "Unity.Splines"

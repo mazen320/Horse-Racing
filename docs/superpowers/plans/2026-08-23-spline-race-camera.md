@@ -18,6 +18,7 @@
 - Create `Assets/Tests/EditMode/RaceCameraHeadingModelTests.cs`: pure heading behavior tests.
 - Modify `Assets/Tests/PlayMode/EventCameraPlayModeTests.cs`: scene wiring, framing, and stability assertions.
 - Modify `Assets/Scenes/Main.unity` through Unity MCP: create player-one target, wire both event cameras, disable Malbers camera ownership, and set presentation values.
+- Modify `ProjectSettings/QualitySettings.asset`: enable one-refresh VSync on every quality level to prevent event-display tearing.
 
 Existing unstaged horse/stamina changes in `RaceSplineTapDriver.cs`, `Main.unity`, and `EditorSettings.asset` are user-owned. Preserve them. Stage only camera-specific scene hunks when committing.
 
@@ -291,16 +292,18 @@ Expected: 0 validation errors and 0 C# compiler errors.
 - [ ] **Step 1: Extend failing presentation assertions**
 
 ```csharp
-Assert.That(mount.Damping.x, Is.EqualTo(0.08f).Within(0.001f));
-Assert.That(mount.Damping.y, Is.EqualTo(0.14f).Within(0.001f));
-Assert.That(mount.Damping.z, Is.EqualTo(0.08f).Within(0.001f));
+Assert.That(mount.Damping.x, Is.EqualTo(0.18f).Within(0.001f));
+Assert.That(mount.Damping.y, Is.EqualTo(0.24f).Within(0.001f));
+Assert.That(mount.Damping.z, Is.EqualTo(0.18f).Within(0.001f));
 Assert.That(mount.ShoulderOffset.x, Is.Zero.Within(0.001f));
-Assert.That(mount.ShoulderOffset.y, Is.EqualTo(0.25f).Within(0.001f));
-Assert.That(mount.VerticalArmLength, Is.EqualTo(1f).Within(0.001f));
-Assert.That(mount.CameraDistance, Is.EqualTo(7.25f).Within(0.001f));
+Assert.That(mount.ShoulderOffset.y, Is.Zero.Within(0.001f));
+Assert.That(mount.VerticalArmLength, Is.EqualTo(0.25f).Within(0.001f));
+Assert.That(mount.CameraDistance, Is.EqualTo(6.5f).Within(0.001f));
 
 var mountCamera = cameras.Single(value => value.name == "CM Third Person Mount");
-Assert.That(mountCamera.Lens.FieldOfView, Is.EqualTo(45f).Within(0.001f));
+Assert.That(mountCamera.Lens.FieldOfView, Is.EqualTo(42.5f).Within(0.001f));
+Assert.That(mountCamera.Lens.NearClipPlane, Is.EqualTo(0.1f).Within(0.001f));
+Assert.That(mountCamera.Lens.FarClipPlane, Is.EqualTo(5000f).Within(0.001f));
 
 Assert.That(targets.All(value => !value.enabled), Is.True);
 Assert.That(lookLinks.All(value => !value.enabled), Is.True);
@@ -312,6 +315,7 @@ Assert.That(noises.All(value => value.AmplitudeGain == 0f), Is.True);
 var impulses = Object.FindObjectsByType<CinemachineExternalImpulseListener>(
     FindObjectsInactive.Include, FindObjectsSortMode.None);
 Assert.That(impulses.All(value => !value.enabled || value.Gain == 0f), Is.True);
+Assert.That(QualitySettings.vSyncCount, Is.EqualTo(1));
 ```
 
 - [ ] **Step 2: Run focused PlayMode test and verify RED**
@@ -326,22 +330,26 @@ Assign:
 
 - `positionAnchor`: preferred horse child `CameraTarget Horse`;
 - `headingSource`: `RaceSetup/Horse Realistic` root;
+- `speedSource`: preferred horse `RaceSplineTapDriver`;
 - `controlledCameras[0]`: `CM Third Person Mount`;
 - `controlledCameras[1]`: `CM Third Person Main`;
 - `yawSmoothTime`: `0.08`;
 - `maxYawLagDegrees`: `8`;
 - `snapAngleDegrees`: `45`.
+- `baseFieldOfView`: `42.5`;
+- `sprintFieldOfView`: `44.5`;
+- `fieldOfViewSmoothTime`: `0.45`.
 
 On both Cinemachine cameras set:
 
 ```text
 TrackingTarget = Race Camera Target P1
-Damping = (0.08, 0.14, 0.08)
-ShoulderOffset = (0, 0.25, 0)
-VerticalArmLength = 1.0
+Damping = (0.18, 0.24, 0.18)
+ShoulderOffset = (0, 0, 0)
+VerticalArmLength = 0.25
 CameraSide = 0.5
-CameraDistance = 7.25
-FieldOfView = 45
+CameraDistance = 6.5
+FieldOfView = 42.5
 AvoidObstacles.Enabled = true
 AvoidObstacles.DampingIntoCollision = 0.10
 AvoidObstacles.DampingFromCollision = 0.40
@@ -349,6 +357,8 @@ CinemachineBasicMultiChannelPerlin.AmplitudeGain = 0
 ```
 
 Disable both Malbers `ThirdPersonFollowTarget` and `MInputLinkLook` components. Set `CM Brain/CinemachineExternalImpulseListener.Gain = 0`. Keep `CinemachineBrain.UpdateMethod = LateUpdate`. Save `Main`.
+
+Set every `vSyncCount` entry in `ProjectSettings/QualitySettings.asset` to `1` so standalone event builds synchronize to one display refresh.
 
 - [ ] **Step 4: Run focused PlayMode test and verify GREEN**
 
