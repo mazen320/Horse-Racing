@@ -1,5 +1,6 @@
 using System;
 using MalbersAnimations.Controller;
+using MalbersAnimations.HAP;
 using Unity.Mathematics;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -227,8 +228,8 @@ namespace HorseRacing.Race
             animal.Strafe = false;
             animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
-            animal.UseSprint = true;
-            animal.CanSprint = true;
+            animal.UseSprint = false;
+            animal.CanSprint = false;
             animal.AlwaysForward = false;
             animal.Sprint_Set(false);
             animal.SetAnimatorSpeed(1f);
@@ -294,6 +295,9 @@ namespace HorseRacing.Race
         {
             foreach (var stats in root.GetComponentsInChildren<MalbersAnimations.Stats>(true))
             {
+                if (!stats.enabled)
+                    stats.enabled = true;
+
                 var stamina = stats.Stat_Get("Stamina");
                 if (stamina == null) continue;
                 stamina.SetActive(false);
@@ -330,6 +334,8 @@ namespace HorseRacing.Race
 
             if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
 
+            DisableStamina(transform);
+
             _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
                 accelSmoothTime, coastSmoothTime);
             _gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
@@ -344,7 +350,15 @@ namespace HorseRacing.Race
         {
             if (!_ready) return;
             animal.Grounded = true;
+            EnsureRiderMounted();
             DriveGait(0);
+        }
+
+        void EnsureRiderMounted()
+        {
+            var rider = FindFirstObjectByType<MRider>(FindObjectsInactive.Include);
+            if (rider == null || rider.IsRiding) return;
+            rider.Start_Mounted(gameObject);
         }
 
         void OnAnimatorMove()
@@ -394,8 +408,9 @@ namespace HorseRacing.Race
             animal.Strafe = false;
             animal.LockForwardMovement = false;
             animal.LockUpDownMovement = true;
-            animal.UseSprint = true;
-            animal.CanSprint = true;
+            animal.UseSprint = false;
+            animal.CanSprint = false;
+            DisableStamina(transform);
 
             if (gait <= 0)
             {
@@ -413,18 +428,10 @@ namespace HorseRacing.Race
             if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
                 animal.State_Force(1);
 
-            if (gait >= 5)
-            {
-                if (!animal.Sprint && animal.CurrentSpeedIndex != 4)
-                    animal.Speed_CurrentIndex_Set(4);
-                animal.Sprint_Set(true);
-            }
-            else
-            {
-                animal.Sprint_Set(false);
-                if (animal.CurrentSpeedIndex != gait)
-                    animal.Speed_CurrentIndex_Set(gait);
-            }
+            animal.Sprint_Set(false);
+            var speedIndex = Mathf.Clamp(gait >= 5 ? 4 : gait, 1, 4);
+            if (animal.CurrentSpeedIndex != speedIndex)
+                animal.Speed_CurrentIndex_Set(speedIndex);
         }
 
         void ApplyPose(bool instant)

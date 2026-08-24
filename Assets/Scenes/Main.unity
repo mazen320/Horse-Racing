@@ -6971,6 +6971,146 @@ PrefabInstance:
       propertyPath: lockHorizontalMovement.ConstantValue
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.ID
+      value: 
+      objectReference: {fileID: 11400000, guid: 8f96533110b305a4792c37a844108d26, type: 2}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.Above
+      value: 25
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: stats.Array.data[0].active
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.value.ConstantValue
+      value: 100
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.immune.ConstantValue
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.DegenRate.ConstantValue
+      value: 20
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.RegenRate.ConstantValue
+      value: 40
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.regenerate.ConstantValue
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.RegenWaitTime.ConstantValue
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: stats.Array.data[0].immune.ConstantValue
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.data[0].m_Mode
+      value: 6
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 11400000, guid: 7cf722dd04e074d4eb5c291280cdd5aa, type: 2}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1729164394}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 1729164394}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnValueChangeNormalized.m_PersistentCalls.m_Calls.Array.size
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: Invoke
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: set_UseSprint
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: set_UseSprint
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnValueChangeNormalized.m_PersistentCalls.m_Calls.Array.data[0].m_Target
+      value: 
+      objectReference: {fileID: 11400000, guid: 7cf722dd04e074d4eb5c291280cdd5aa, type: 2}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnValueChangeNormalized.m_PersistentCalls.m_Calls.Array.data[0].m_CallState
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnValueChangeNormalized.m_PersistentCalls.m_Calls.Array.data[0].m_MethodName
+      value: Invoke
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_BoolArgument
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatFull.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatAbove.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnStatBelow.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
+    - target: {fileID: 7156033789048352474, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
+      propertyPath: PinnedStat.OnValueChangeNormalized.m_PersistentCalls.m_Calls.Array.data[0].m_Arguments.m_ObjectArgumentAssemblyTypeName
+      value: UnityEngine.Object, UnityEngine
+      objectReference: {fileID: 0}
     - target: {fileID: 8089954875036586230, guid: 6c7a70b07cc96cb42bf7239369521199, type: 3}
       propertyPath: m_CastShadows
       value: 1
@@ -31344,27 +31484,27 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 5.61995
+      value: 6.5156364
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalPosition.z
-      value: -358.7
+      value: -352.162
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: -0.99995184
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0.009817316
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: 0.00000062637304
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: -0.0000018085015
       objectReference: {fileID: 0}
     - target: {fileID: 2963309877803708570, guid: f5b3dbbc0bf85504fadc3a4a45db6daa, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
