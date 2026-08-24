@@ -5,6 +5,7 @@ namespace HorseRacing.Race
 {
     [DisallowMultipleComponent]
     [DefaultExecutionOrder(-50)]
+    [ExecuteAlways]
     public sealed class RaceCameraTarget : MonoBehaviour
     {
         [Header("Per-player references")]
@@ -63,6 +64,27 @@ namespace HorseRacing.Race
                 return;
             }
 
+            if (Application.isPlaying)
+                BeginPlayMode();
+            else
+                SnapBehindSubject();
+        }
+
+        void LateUpdate()
+        {
+            if (!Application.isPlaying)
+            {
+                SnapBehindSubject();
+                return;
+            }
+
+            var deltaTime = Time.unscaledDeltaTime;
+            ApplyPose(deltaTime, false);
+            ApplyLens(deltaTime, false);
+        }
+
+        void BeginPlayMode()
+        {
             _originalTargets = new Transform[controlledCameras.Length];
             _originalFieldOfViews = new float[controlledCameras.Length];
             SnapBehindSubject();
@@ -74,13 +96,6 @@ namespace HorseRacing.Race
             }
             ApplyLens(0f, true);
             _ownsTargets = true;
-        }
-
-        void LateUpdate()
-        {
-            var deltaTime = Time.unscaledDeltaTime;
-            ApplyPose(deltaTime, false);
-            ApplyLens(deltaTime, false);
         }
 
         public void SnapBehindSubject() => ApplyPose(0f, true);
@@ -152,7 +167,7 @@ namespace HorseRacing.Race
 
         void OnDisable()
         {
-            if (!_ownsTargets || _originalTargets == null) return;
+            if (!Application.isPlaying || !_ownsTargets || _originalTargets == null) return;
             for (var i = 0; i < controlledCameras.Length; i++)
             {
                 if (controlledCameras[i] &&
