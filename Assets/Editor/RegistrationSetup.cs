@@ -1,10 +1,11 @@
+using System.Linq;
 using HorseRacing.Registration;
 using HorseRacing.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 
-namespace HorseRacing.Registration.Editor
+namespace HorseRacing.Race.Editor
 {
     public static class RegistrationSetup
     {
@@ -25,7 +26,7 @@ namespace HorseRacing.Registration.Editor
             if (!gameBridge)
                 gameBridge = bridge.AddComponent<RegistrationGameBridge>();
 
-            var ui = Object.FindAnyObjectByType<NacdEnergizingUIManager>();
+            var ui = Object.FindObjectsByType<NacdEnergizingUIManager>(FindObjectsInactive.Include).FirstOrDefault();
             if (!ui)
             {
                 Debug.LogError("[RegistrationSetup] NacdEnergizingUIManager not found in scene.");
