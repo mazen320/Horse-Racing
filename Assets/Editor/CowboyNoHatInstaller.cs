@@ -146,6 +146,7 @@ namespace HorseRacing.Race.Editor
             var mesh = Object.Instantiate(sourceMesh);
             mesh.name = "cowboy_no_hat_unity";
             RemapBoneWeights(mesh, indexMap);
+            FitMeshToReference(mesh, originalMesh);
             mesh.bindposes = originalMesh.bindposes;
             mesh.RecalculateBounds();
             mesh.RecalculateTangents();
@@ -156,6 +157,50 @@ namespace HorseRacing.Race.Editor
                 $"ref {originalMesh.bounds.size}");
 
             return mesh;
+        }
+
+        /// <summary>
+        /// Blender re-exports can arrive with wrong scale/orientation. Match Malbers CowBoy bounds per axis.
+        /// </summary>
+        static void FitMeshToReference(Mesh mesh, Mesh reference)
+        {
+            var src = mesh.bounds;
+            var dst = reference.bounds;
+
+            var srcSize = src.size;
+            var dstSize = dst.size;
+            if (srcSize.sqrMagnitude <= 1e-8f || dstSize.sqrMagnitude <= 1e-8f)
+                return;
+
+            var scale = new Vector3(
+                dstSize.x / Mathf.Max(srcSize.x, 1e-5f),
+                dstSize.y / Mathf.Max(srcSize.y, 1e-5f),
+                dstSize.z / Mathf.Max(srcSize.z, 1e-5f));
+
+            // Only correct when clearly wrong (Blender cm export, etc.).
+            var maxRatio = Mathf.Max(scale.x, scale.y, scale.z);
+            var minRatio = Mathf.Min(scale.x, scale.y, scale.z);
+            if (maxRatio > 0.5f && minRatio < 2f)
+                return;
+
+            var verts = mesh.vertices;
+            var srcCenter = src.center;
+            var dstCenter = dst.center;
+            for (var i = 0; i < verts.Length; i++)
+            {
+                var offset = verts[i] - srcCenter;
+                verts[i] = new Vector3(
+                    offset.x * scale.x,
+                    offset.y * scale.y,
+                    offset.z * scale.z) + dstCenter;
+            }
+
+            mesh.vertices = verts;
+            mesh.RecalculateBounds();
+
+            Debug.Log(
+                $"[CowboyNoHatInstaller] Fitted mesh scale {scale} " +
+                $"(src {src.size} -> {mesh.bounds.size}, ref {dst.size})");
         }
 
         static List<string> GetBoneNames(SkinnedMeshRenderer smr)
