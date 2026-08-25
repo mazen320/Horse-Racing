@@ -35,6 +35,14 @@ namespace HorseRacing.Race.Tests
                     Is.EqualTo(CinemachineBrain.UpdateMethods.LateUpdate));
                 Assert.That(driver.sprintMetersPerSecond,
                     Is.EqualTo(9.25f).Within(0.001f));
+                Assert.That(driver.raceFullSpline, Is.True);
+                Assert.That(driver.ActiveRaceDistance,
+                    Is.InRange(1137f, 1139f));
+                Assert.That(driver.courseSpeedMultiplier,
+                    Is.EqualTo(1.35f).Within(0.001f));
+                Assert.That(driver.tapsPerSecondForMax,
+                    Is.EqualTo(2.2f).Within(0.001f));
+                Assert.That(driver.EstimatedBestTimeSeconds, Is.InRange(90f, 92f));
             }
             finally
             {
@@ -158,6 +166,61 @@ namespace HorseRacing.Race.Tests
                 yield return new WaitForSecondsRealtime(0.25f);
                 yield return new WaitForEndOfFrame();
                 Assert.That(Vector3.Distance(driver.transform.position, stoppedPosition), Is.LessThan(0.0001f));
+            }
+            finally
+            {
+                LogAssert.ignoreFailingMessages = false;
+            }
+        }
+
+        [UnityTest]
+        public IEnumerator ShortEventRace_FinishesOnceStopsAndCanRestart()
+        {
+            LogAssert.ignoreFailingMessages = true;
+            try
+            {
+                var load = SceneManager.LoadSceneAsync("Main", LoadSceneMode.Single);
+                while (!load.isDone) yield return null;
+
+                var driver = Object.FindFirstObjectByType<RaceSplineTapDriver>();
+                Assert.That(driver, Is.Not.Null);
+                driver.raceFullSpline = false;
+                driver.raceDistanceMeters = 0.5f;
+                driver.courseSpeedMultiplier = 1f;
+                var finishCount = 0;
+                driver.onRaceFinished.AddListener(() => finishCount++);
+
+                var keyboard = InputSystem.AddDevice<Keyboard>();
+                var timeout = Time.realtimeSinceStartup + 3f;
+                while (!driver.IsFinished && Time.realtimeSinceStartup < timeout)
+                {
+                    Press(keyboard.wKey);
+                    yield return null;
+                    Release(keyboard.wKey);
+                    yield return null;
+                }
+
+                Assert.That(driver.IsFinished, Is.True);
+                Assert.That(driver.DistanceTravelled, Is.EqualTo(0.5f).Within(0.0001f));
+                Assert.That(driver.RaceProgress, Is.EqualTo(1f));
+                Assert.That(driver.TravelSpeed, Is.Zero);
+                Assert.That(driver.RequestedGait, Is.Zero);
+                Assert.That(finishCount, Is.EqualTo(1));
+
+                var finishPosition = driver.transform.position;
+                Press(keyboard.wKey);
+                yield return null;
+                Release(keyboard.wKey);
+                yield return new WaitForSecondsRealtime(0.1f);
+                yield return new WaitForEndOfFrame();
+                Assert.That(Vector3.Distance(driver.transform.position, finishPosition),
+                    Is.LessThan(0.0001f));
+                Assert.That(finishCount, Is.EqualTo(1));
+
+                driver.RestartRace();
+                Assert.That(driver.IsFinished, Is.False);
+                Assert.That(driver.DistanceTravelled, Is.Zero);
+                Assert.That(driver.RaceProgress, Is.Zero);
             }
             finally
             {

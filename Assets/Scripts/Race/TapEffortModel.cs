@@ -57,7 +57,7 @@ namespace HorseRacing.Race
             while (gait < 5 && effort >= Threshold(
                        gait + 1, walkAt, trotAt, canterAt, gallopAt, sprintAt))
                 gait++;
-            while (gait > 0 && effort < Mathf.Max(0f,
+            while (gait > 0 && effort <= Mathf.Max(0f,
                        Threshold(gait, walkAt, trotAt, canterAt, gallopAt, sprintAt) - hysteresis))
                 gait--;
             return gait;

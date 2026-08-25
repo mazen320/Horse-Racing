@@ -45,5 +45,12 @@ namespace HorseRacing.Race.Tests
             Assert.That(TapEffortModel.SelectGait(
                 0.85f, 5, 0.08f, 0.28f, 0.52f, 0.78f, 0.92f, 0.06f), Is.EqualTo(4));
         }
+
+        [Test]
+        public void SelectGait_ZeroEffortAlwaysReturnsToIdle()
+        {
+            Assert.That(TapEffortModel.SelectGait(
+                0f, 1, 0.06f, 0.2f, 0.4f, 0.65f, 0.85f, 0.06f), Is.Zero);
+        }
     }
 }

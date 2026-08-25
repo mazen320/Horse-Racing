@@ -3,6 +3,7 @@ using MalbersAnimations.Controller;
 using MalbersAnimations.HAP;
 using Unity.Mathematics;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.InputSystem;
 using UnityEngine.Splines;
 
@@ -25,6 +26,16 @@ namespace HorseRacing.Race
 
         [Header("Keyboard tap bindings")]
         [SerializeField] Key[] tapKeys = { Key.Space, Key.W, Key.UpArrow };
+
+        [Header("Short event race")]
+        [Tooltip("Finish after one complete lap of the closed presentation spline. Disable to use the custom distance below.")]
+        public bool raceFullSpline = true;
+        [Tooltip("Distance from the horse's starting point to the event finish. 125 m is roughly a 15-second sprint, while the full presentation spline is over 1.1 km.")]
+        [Min(10f)] public float raceDistanceMeters = 125f;
+        [Tooltip("Small event boost applied to spline travel without changing gait thresholds. 1.35x keeps sprint motion believable and completes the full 1.14 km lap in roughly 90-100 seconds at sustained effort.")]
+        [Range(1f, 5f)] public float courseSpeedMultiplier = 1.35f;
+        [Tooltip("Invoked once when the horse reaches the event finish. Connect results UI, lights, or panel feedback here.")]
+        public UnityEvent onRaceFinished = new UnityEvent();
 
         [Header("Tap effort (smooth)")]
         public float tapWindow = 1f;
@@ -59,17 +70,20 @@ namespace HorseRacing.Race
         [Header("Look ahead on track")]
         [Tooltip("How far ahead on the spline to look/face (meters).")]
         public float lookAheadMeters = 16f;
-        public float turnSmoothTime = 0.32f;
+        [Tooltip("How quickly the horse rotates into bends. Lower values prevent visible sideways drift on tighter turns.")]
+        public float turnSmoothTime = 0.16f;
 
         readonly TapEffortModel _effortModel = new TapEffortModel();
         readonly RootMotionDistanceAccumulator _rootMotion = new RootMotionDistanceAccumulator();
         readonly GaitTravelSpeedModel _travelSpeed = new GaitTravelSpeedModel();
         readonly ConfigurableKeyboardTapInput _keyboardInput = new ConfigurableKeyboardTapInput();
+        readonly EventRaceProgressModel _raceProgress = new EventRaceProgressModel();
 
         Rigidbody _rigidbody;
         Spline _spline;
         float _splineLength = 1f;
         float _normalizedT;
+        float _startNormalizedT;
         float _yawVelocity;
         int _gait;
         int _animationGait;
@@ -97,8 +111,18 @@ namespace HorseRacing.Race
         public float TravelSpeed => _travelSpeed.Speed;
         public int RequestedGait => _gait;
         public int AnimationGait => _animationGait;
+        public float DistanceTravelled => _raceProgress.DistanceTravelled;
+        public float ActiveRaceDistance => raceFullSpline ? _splineLength : raceDistanceMeters;
+        public float RaceProgress => _raceProgress.Progress(ActiveRaceDistance);
+        public bool IsFinished => _raceProgress.IsFinished;
+        public float EstimatedBestTimeSeconds => ActiveRaceDistance /
+            Mathf.Max(0.01f, sprintMetersPerSecond * courseSpeedMultiplier);
 
-        public void RegisterTap() => _effortModel.RegisterTap(Time.time);
+        public void RegisterTap()
+        {
+            if (_ready && !IsFinished)
+                _effortModel.RegisterTap(Time.time);
+        }
 
         void Reset()
         {
@@ -112,6 +136,8 @@ namespace HorseRacing.Race
             tapsPerSecondForMax = Mathf.Max(0.1f, tapsPerSecondForMax);
             accelSmoothTime = Mathf.Max(0f, accelSmoothTime);
             coastSmoothTime = Mathf.Max(0f, coastSmoothTime);
+            raceDistanceMeters = Mathf.Max(10f, raceDistanceMeters);
+            courseSpeedMultiplier = Mathf.Clamp(courseSpeedMultiplier, 1f, 5f);
 
             walkAt = Mathf.Clamp01(walkAt);
             trotAt = Mathf.Clamp(trotAt, walkAt, 1f);
@@ -186,6 +212,8 @@ namespace HorseRacing.Race
             _gait = 0;
             _animationGait = 0;
             _normalizedT = NearestT(transform.position);
+            _startNormalizedT = _normalizedT;
+            _raceProgress.Reset();
             _ready = true;
             ApplyPose(true);
         }
@@ -331,6 +359,7 @@ namespace HorseRacing.Race
         void Update()
         {
             if (!_ready) return;
+            if (IsFinished) return;
 
             if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
 
@@ -370,6 +399,11 @@ namespace HorseRacing.Race
         void LateUpdate()
         {
             if (!_ready) return;
+            if (IsFinished)
+            {
+                ApplyPose(false);
+                return;
+            }
 
             var deltaTime = Time.deltaTime;
             var nativeDistance = useAnimationRootMotionDistance ? _rootMotion.Consume() : 0f;
@@ -388,14 +422,48 @@ namespace HorseRacing.Race
             if (nativeDistance > 0.00001f)
                 _travelSpeed.FollowNative(distance, deltaTime);
 
+            distance *= courseSpeedMultiplier;
+
             _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
                 _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
                 canterMetersPerSecond, gallopMetersPerSecond, sprintMetersPerSecond);
             DriveGait(_animationGait);
 
+            distance = _raceProgress.Advance(distance, ActiveRaceDistance);
             if (distance > 0.00001f)
                 _normalizedT = Mathf.Repeat(_normalizedT + distance / _splineLength, 1f);
             ApplyPose(false);
+
+            if (IsFinished)
+                CompleteRace();
+        }
+
+        void CompleteRace()
+        {
+            _gait = 0;
+            _animationGait = 0;
+            _effortModel.Reset();
+            _rootMotion.Reset();
+            _travelSpeed.Reset();
+            DriveGait(0);
+            onRaceFinished?.Invoke();
+        }
+
+        /// <summary>Returns the horse to its start for the next event player.</summary>
+        public void RestartRace()
+        {
+            if (!_ready) return;
+
+            _normalizedT = _startNormalizedT;
+            _yawVelocity = 0f;
+            _gait = 0;
+            _animationGait = 0;
+            _effortModel.Reset();
+            _rootMotion.Reset();
+            _travelSpeed.Reset();
+            _raceProgress.Reset();
+            ApplyPose(true);
+            DriveGait(0);
         }
 
         void DriveGait(int gait)
@@ -499,6 +567,7 @@ namespace HorseRacing.Race
             _effortModel.Reset();
             _rootMotion.Reset();
             _travelSpeed.Reset();
+            _raceProgress.Reset();
 
             if (!_ownershipCaptured) return;
 
