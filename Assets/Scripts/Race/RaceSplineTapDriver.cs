@@ -88,6 +88,7 @@ namespace HorseRacing.Race
         int _gait;
         int _animationGait;
         bool _ready;
+        bool _raceInputEnabled = true;
         bool _ownershipCaptured;
 
         bool _originalAnimalDisablePosition;
@@ -115,12 +116,26 @@ namespace HorseRacing.Race
         public float ActiveRaceDistance => raceFullSpline ? _splineLength : raceDistanceMeters;
         public float RaceProgress => _raceProgress.Progress(ActiveRaceDistance);
         public bool IsFinished => _raceProgress.IsFinished;
+        public bool RaceInputEnabled => _raceInputEnabled;
         public float EstimatedBestTimeSeconds => ActiveRaceDistance /
             Mathf.Max(0.01f, sprintMetersPerSecond * courseSpeedMultiplier);
 
+        public void SetRaceInputEnabled(bool enabled)
+        {
+            _raceInputEnabled = enabled;
+            if (!enabled)
+            {
+                _gait = 0;
+                _animationGait = 0;
+                _effortModel.Reset();
+                _travelSpeed.Reset();
+                DriveGait(0);
+            }
+        }
+
         public void RegisterTap()
         {
-            if (_ready && !IsFinished)
+            if (_ready && _raceInputEnabled && !IsFinished)
                 _effortModel.RegisterTap(Time.time);
         }
 
@@ -358,7 +373,7 @@ namespace HorseRacing.Race
 
         void Update()
         {
-            if (!_ready) return;
+            if (!_ready || !_raceInputEnabled) return;
             if (IsFinished) return;
 
             if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
@@ -398,7 +413,7 @@ namespace HorseRacing.Race
 
         void LateUpdate()
         {
-            if (!_ready) return;
+            if (!_ready || !_raceInputEnabled) return;
             if (IsFinished)
             {
                 ApplyPose(false);

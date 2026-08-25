@@ -567,10 +567,10 @@ Rigidbody:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1438017827249262}
-  serializedVersion: 4
+  serializedVersion: 5
   m_Mass: 20
-  m_Drag: 0
-  m_AngularDrag: 0.05
+  m_LinearDamping: 0
+  m_AngularDamping: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
   m_InertiaTensor: {x: 1, y: 1, z: 1}
   m_InertiaRotation: {x: 0, y: 0, z: 0, w: 1}
@@ -791,6 +791,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Look
         m_Type: 0
         m_ExpectedControlType: Vector2
@@ -799,6 +800,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Sprint
         m_Type: 1
         m_ExpectedControlType: 
@@ -807,6 +809,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action1
         m_Type: 1
         m_ExpectedControlType: 
@@ -815,6 +818,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action2
         m_Type: 1
         m_ExpectedControlType: 
@@ -823,6 +827,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action3 (Action1 + Action2)
         m_Type: 1
         m_ExpectedControlType: 
@@ -831,6 +836,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Jump
         m_Type: 1
         m_ExpectedControlType: 
@@ -839,6 +845,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Interact
         m_Type: 1
         m_ExpectedControlType: 
@@ -847,6 +854,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Crouch
         m_Type: 1
         m_ExpectedControlType: 
@@ -855,6 +863,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Dodge
         m_Type: 1
         m_ExpectedControlType: 
@@ -863,6 +872,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: SpeedUp
         m_Type: 1
         m_ExpectedControlType: 
@@ -871,6 +881,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: SpeedDown
         m_Type: 1
         m_ExpectedControlType: 
@@ -879,6 +890,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Inventory
         m_Type: 1
         m_ExpectedControlType: 
@@ -887,6 +899,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: UpDown
         m_Type: 0
         m_ExpectedControlType: Axis
@@ -895,6 +908,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: LockOn
         m_Type: 1
         m_ExpectedControlType: 
@@ -903,6 +917,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Reload
         m_Type: 1
         m_ExpectedControlType: 
@@ -911,6 +926,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Zoom
         m_Type: 0
         m_ExpectedControlType: Vector2
@@ -919,6 +935,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Mount
         m_Type: 1
         m_ExpectedControlType: 
@@ -927,6 +944,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Holster1
         m_Type: 1
         m_ExpectedControlType: 
@@ -935,6 +953,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Holster2
         m_Type: 1
         m_ExpectedControlType: 
@@ -943,6 +962,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Holster3
         m_Type: 1
         m_ExpectedControlType: 
@@ -951,6 +971,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Strafe
         m_Type: 1
         m_ExpectedControlType: 
@@ -959,6 +980,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Join
         m_Type: 1
         m_ExpectedControlType: 
@@ -967,6 +989,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Pause
         m_Type: 1
         m_ExpectedControlType: 
@@ -975,6 +998,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       m_Bindings:
       - m_Name: 
         m_Id: a73f5288-cc64-4972-ae2f-5ba56c2f5ec1
@@ -2527,6 +2551,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Look
         m_Type: 0
         m_ExpectedControlType: Vector2
@@ -2535,6 +2560,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Sprint
         m_Type: 1
         m_ExpectedControlType: 
@@ -2543,6 +2569,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action1
         m_Type: 1
         m_ExpectedControlType: 
@@ -2551,6 +2578,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action2
         m_Type: 1
         m_ExpectedControlType: 
@@ -2559,6 +2587,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Action3
         m_Type: 1
         m_ExpectedControlType: 
@@ -2567,6 +2596,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Jump
         m_Type: 1
         m_ExpectedControlType: 
@@ -2575,6 +2605,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Interact
         m_Type: 1
         m_ExpectedControlType: 
@@ -2583,6 +2614,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Crouch
         m_Type: 1
         m_ExpectedControlType: 
@@ -2591,6 +2623,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Dodge
         m_Type: 1
         m_ExpectedControlType: 
@@ -2599,6 +2632,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Strafe
         m_Type: 1
         m_ExpectedControlType: 
@@ -2607,6 +2641,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: SpeedUp
         m_Type: 1
         m_ExpectedControlType: 
@@ -2615,6 +2650,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: SpeedDown
         m_Type: 1
         m_ExpectedControlType: Button
@@ -2623,6 +2659,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Inventory
         m_Type: 1
         m_ExpectedControlType: 
@@ -2631,6 +2668,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: UpDown
         m_Type: 0
         m_ExpectedControlType: Axis
@@ -2639,6 +2677,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: LockOn
         m_Type: 1
         m_ExpectedControlType: 
@@ -2647,6 +2686,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Zoom
         m_Type: 0
         m_ExpectedControlType: Vector2
@@ -2655,6 +2695,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Join
         m_Type: 1
         m_ExpectedControlType: 
@@ -2663,6 +2704,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Pause
         m_Type: 1
         m_ExpectedControlType: 
@@ -2671,6 +2713,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Dismount
         m_Type: 1
         m_ExpectedControlType: 
@@ -2679,6 +2722,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       m_Bindings:
       - m_Name: 
         m_Id: bca161dc-5ded-4399-ac44-aa62e17f2e98
@@ -3109,6 +3153,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Submit
         m_Type: 1
         m_ExpectedControlType: 
@@ -3117,6 +3162,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Cancel
         m_Type: 1
         m_ExpectedControlType: 
@@ -3125,6 +3171,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: Point
         m_Type: 2
         m_ExpectedControlType: Vector2
@@ -3133,6 +3180,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: Click
         m_Type: 2
         m_ExpectedControlType: Button
@@ -3141,6 +3189,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 1
+        m_Priority: 0
       - m_Name: RightClick
         m_Type: 2
         m_ExpectedControlType: Button
@@ -3149,6 +3198,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: MiddleClick
         m_Type: 2
         m_ExpectedControlType: Button
@@ -3157,6 +3207,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       - m_Name: ScrollWheel
         m_Type: 2
         m_ExpectedControlType: Vector2
@@ -3165,6 +3216,7 @@ MonoBehaviour:
         m_Interactions: 
         m_SingletonActionBindings: []
         m_Flags: 0
+        m_Priority: 0
       m_Bindings:
       - m_Name: Gamepad
         m_Id: 51f16ca8-0608-4bc2-a45e-e90b2d830149
@@ -12709,6 +12761,8 @@ SkinnedMeshRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -12730,9 +12784,11 @@ SkinnedMeshRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   serializedVersion: 2
   m_Quality: 4
   m_UpdateWhenOffscreen: 0
@@ -13606,7 +13662,7 @@ MonoBehaviour:
   MaxSteps: 50
 --- !u!120 &8661040759214707855
 LineRenderer:
-  serializedVersion: 2
+  serializedVersion: 3
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
@@ -13625,6 +13681,8 @@ LineRenderer:
   m_RayTracingAccelStructBuildFlagsOverride: 0
   m_RayTracingAccelStructBuildFlags: 1
   m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
@@ -13646,9 +13704,11 @@ LineRenderer:
   m_AutoUVMaxDistance: 0.5
   m_AutoUVMaxAngle: 89
   m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_Positions: []
   m_Parameters:
     serializedVersion: 3
@@ -13714,7 +13774,6 @@ LineRenderer:
     textureScale: {x: 1, y: 1}
     shadowBias: 0.5
     generateLightingData: 0
-  m_MaskInteraction: 0
   m_UseWorldSpace: 1
   m_Loop: 0
   m_ApplyActiveColorSpace: 0

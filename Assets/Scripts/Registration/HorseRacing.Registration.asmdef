@@ -1,0 +1,17 @@
+{
+  "name": "HorseRacing.Registration",
+  "rootNamespace": "HorseRacing.Registration",
+  "references": [
+    "Unity.Newtonsoft.Json",
+    "HorseRacing.UI"
+  ],
+  "includePlatforms": [],
+  "excludePlatforms": [],
+  "allowUnsafeCode": false,
+  "overrideReferences": false,
+  "precompiledReferences": [],
+  "autoReferenced": true,
+  "defineConstraints": [],
+  "versionDefines": [],
+  "noEngineReferences": false
+}

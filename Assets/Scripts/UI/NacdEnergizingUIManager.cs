@@ -144,6 +144,29 @@ namespace HorseRacing.UI
             _flowCoroutine = null;
         }
 
+        public void ApplyTabletRegistration(string player1, string player2, bool showInstructions)
+        {
+            SetPlayerNames(player1, player2);
+            ApplyState(showInstructions ? FlowState.InstructionsPage : FlowState.StartPage);
+        }
+
+        public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
+
+        public void ApplyTabletStartRace() => StartMatch();
+
+        public void ApplyTabletRestart()
+        {
+            StopFlow();
+            _player1Time = -1f;
+            _player2Time = -1f;
+            if (raceDriver)
+            {
+                raceDriver.RestartRace();
+                raceDriver.SetRaceInputEnabled(false);
+            }
+            ApplyState(FlowState.StartPage, true);
+        }
+
         public void SetPlayerNames(string player1, string player2)
         {
             if (!string.IsNullOrWhiteSpace(player1))
