@@ -26,6 +26,16 @@
 # Recordings can get excessive in size
 /[Rr]ecordings/
 
+# Local Tripo experiment assets (too large for GitHub)
+Assets/TripoModels/jockey_3d_model/jockey_3d_model.fbx
+Assets/TripoModels/jockey_3d_model/jockey_3d_model.fbx.meta
+Assets/TripoModels/jockey_3d_model/jockey_3d_model.fbm/
+Assets/TripoModels/jockey_3d_model/jockey_malbers_rigged.fbx
+Assets/TripoModels/jockey_3d_model/jockey_malbers_rigged.fbx.meta
+Assets/TripoModels/jockey_3d_model/jockey_malbers_unity.mesh
+Assets/TripoModels/jockey_3d_model/jockey_malbers_unity.mesh.meta
+Assets/TripoModels/jockey_3d_model/Materials/
+
 # Uncomment this line if you wish to ignore the asset store tools plugin
 # /[Aa]ssets/AssetStoreTools*
 
