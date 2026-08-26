@@ -59,6 +59,10 @@ namespace HorseRacing.UI
         [SerializeField] CanvasGroup countdownCG;
         [SerializeField] TMP_Text countdownText;
         [SerializeField] TMP_Text raceTimerText;
+        [Tooltip("Pill behind the race clock. Leave empty to use the race timer text's parent.")]
+        [SerializeField] RectTransform timerPill;
+        [Tooltip("Gap below the nameplate that the clock drops into on a solo run.")]
+        [SerializeField] float soloTimerGap = 8f;
 
         [Header("Results — verdict on the nameplates")]
         [Tooltip("Separator between the rider name and the verdict, e.g. ALEX — WON.")]
@@ -139,6 +143,8 @@ namespace HorseRacing.UI
         float _player1NameplateRestY;
         float _player2NameplateRestY;
         bool _nameplateRestCached;
+        Vector2 _timerPillRestPos;
+        bool _timerPillRestCached;
         RaceLeaderboardStore _leaderboard;
         int _player1BoardPosition;
         int _player2BoardPosition;
@@ -329,10 +335,49 @@ namespace HorseRacing.UI
 
             // One rider gets the whole width so the plate sits centre screen instead of
             // hugging the left half where the split divider used to be.
-            if (!player1Nameplate) return;
-            player1Nameplate.anchorMin = new Vector2(0f, 1f);
-            player1Nameplate.anchorMax = new Vector2(Solo ? 1f : 0.5f, 1f);
-            player1Nameplate.anchoredPosition = new Vector2(0f, player1Nameplate.anchoredPosition.y);
+            if (player1Nameplate)
+            {
+                player1Nameplate.anchorMin = new Vector2(0f, 1f);
+                player1Nameplate.anchorMax = new Vector2(Solo ? 1f : 0.5f, 1f);
+                player1Nameplate.anchoredPosition = new Vector2(0f, player1Nameplate.anchoredPosition.y);
+            }
+
+            ApplyTimerPillLayout();
+        }
+
+        RectTransform TimerPill
+        {
+            get
+            {
+                if (!timerPill && raceTimerText)
+                    timerPill = raceTimerText.transform.parent as RectTransform;
+
+                return timerPill;
+            }
+        }
+
+        /// <summary>
+        /// Two riders split the bar and leave the middle clear for the clock. A single
+        /// rider spans the full width and lands on top of it, so the clock drops to its
+        /// own row under the nameplate.
+        /// </summary>
+        void ApplyTimerPillLayout()
+        {
+            var pill = TimerPill;
+            if (!pill)
+                return;
+
+            if (!_timerPillRestCached)
+            {
+                _timerPillRestPos = pill.anchoredPosition;
+                _timerPillRestCached = true;
+            }
+
+            var drop = player1Nameplate ? player1Nameplate.rect.height + soloTimerGap : 0f;
+
+            pill.anchoredPosition = Solo
+                ? new Vector2(_timerPillRestPos.x, _timerPillRestPos.y - drop)
+                : _timerPillRestPos;
         }
 
         public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
