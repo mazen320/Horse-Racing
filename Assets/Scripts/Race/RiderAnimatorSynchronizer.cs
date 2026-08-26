@@ -11,16 +11,11 @@ namespace HorseRacing.Race
     [DisallowMultipleComponent]
     public sealed class RiderAnimatorSynchronizer : MonoBehaviour
     {
-        static readonly int LeftFootWeight = Animator.StringToHash("IKLeftFoot");
-        static readonly int RightFootWeight = Animator.StringToHash("IKRightFoot");
-
         [SerializeField] Animator sourceAnimator;
         [SerializeField] Animator targetAnimator;
         [SerializeField] MRider rider;
 
         AnimatorControllerParameter[] parameters;
-        Transform sourceLeftHand;
-        Transform sourceRightHand;
         bool initialized;
 
         public Animator SourceAnimator => sourceAnimator;
@@ -61,12 +56,6 @@ namespace HorseRacing.Race
             if (!initialized) return;
 
             parameters = sourceAnimator.parameters;
-            sourceLeftHand = sourceAnimator.isHuman
-                ? sourceAnimator.GetBoneTransform(HumanBodyBones.LeftHand)
-                : null;
-            sourceRightHand = sourceAnimator.isHuman
-                ? sourceAnimator.GetBoneTransform(HumanBodyBones.RightHand)
-                : null;
             targetAnimator.applyRootMotion = false;
             targetAnimator.updateMode = sourceAnimator.updateMode;
             targetAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
@@ -156,95 +145,6 @@ namespace HorseRacing.Race
 
             rider.LeftHand = targetAnimator.GetBoneTransform(HumanBodyBones.LeftHand);
             rider.RightHand = targetAnimator.GetBoneTransform(HumanBodyBones.RightHand);
-        }
-
-        void OnAnimatorIK(int layerIndex)
-        {
-            if (!initialized)
-                return;
-
-            if (!rider || !rider.IsRiding || !rider.Montura)
-            {
-                SetHandWeight(AvatarIKGoal.LeftHand, 0f);
-                SetHandWeight(AvatarIKGoal.RightHand, 0f);
-                return;
-            }
-
-            SetHandIK(AvatarIKGoal.LeftHand, sourceLeftHand);
-            SetHandIK(AvatarIKGoal.RightHand, sourceRightHand);
-
-            BindHumanoidReferences();
-            rider.gameObject.SendMessage("IK_Reins", SendMessageOptions.DontRequireReceiver);
-
-            if (!rider.IsMountingDismounting)
-            {
-                SetFootWeight(AvatarIKGoal.LeftFoot, 0f);
-                SetFootWeight(AvatarIKGoal.RightFoot, 0f);
-                return;
-            }
-
-            var leftWeight = rider.IsMounting || rider.IsDismounting
-                ? targetAnimator.GetFloat(LeftFootWeight)
-                : 1f;
-            var rightWeight = rider.IsMounting || rider.IsDismounting
-                ? targetAnimator.GetFloat(RightFootWeight)
-                : 1f;
-
-            SetFootIK(
-                AvatarIKGoal.LeftFoot,
-                AvatarIKHint.LeftKnee,
-                rider.Montura.FootLeftIK,
-                rider.Montura.KneeLeftIK,
-                leftWeight);
-            SetFootIK(
-                AvatarIKGoal.RightFoot,
-                AvatarIKHint.RightKnee,
-                rider.Montura.FootRightIK,
-                rider.Montura.KneeRightIK,
-                rightWeight);
-        }
-
-        void SetHandIK(AvatarIKGoal goal, Transform sourceHand)
-        {
-            var weight = sourceHand ? 1f : 0f;
-            targetAnimator.SetIKPositionWeight(goal, weight);
-            // Rotation IK forces unnatural elbow solves across mismatched humanoid bind poses.
-            targetAnimator.SetIKRotationWeight(goal, 0f);
-            if (!sourceHand) return;
-
-            targetAnimator.SetIKPosition(goal, sourceHand.position);
-        }
-
-        void SetHandWeight(AvatarIKGoal goal, float weight)
-        {
-            targetAnimator.SetIKPositionWeight(goal, weight);
-            targetAnimator.SetIKRotationWeight(goal, weight);
-        }
-
-        void SetFootIK(
-            AvatarIKGoal goal,
-            AvatarIKHint hint,
-            Transform footTarget,
-            Transform kneeTarget,
-            float weight)
-        {
-            SetFootWeight(goal, weight);
-            targetAnimator.SetIKHintPositionWeight(hint, weight);
-
-            if (footTarget)
-            {
-                targetAnimator.SetIKPosition(goal, footTarget.position);
-                targetAnimator.SetIKRotation(goal, footTarget.rotation);
-            }
-
-            if (kneeTarget)
-                targetAnimator.SetIKHintPosition(hint, kneeTarget.position);
-        }
-
-        void SetFootWeight(AvatarIKGoal goal, float weight)
-        {
-            targetAnimator.SetIKPositionWeight(goal, weight);
-            targetAnimator.SetIKRotationWeight(goal, weight);
         }
     }
 }

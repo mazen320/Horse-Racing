@@ -89,13 +89,7 @@ namespace HorseRacing.Race.Editor
 
             RestoreRiderAvatar(rider);
 
-            var malbersRider = rider.GetComponent<MRider>();
-            var animator = rider.GetComponent<Animator>();
-            if (malbersRider && animator && animator.isHuman)
-            {
-                malbersRider.LeftHand = animator.GetBoneTransform(HumanBodyBones.LeftHand);
-                malbersRider.RightHand = animator.GetBoneTransform(HumanBodyBones.RightHand);
-            }
+            WireRiderHands(rider);
 
             EditorUtility.SetDirty(rider);
             EditorSceneManager.MarkSceneDirty(rider.scene);
@@ -229,6 +223,47 @@ namespace HorseRacing.Race.Editor
                 animator.avatar = riderAvatar;
 
             animator.applyRootMotion = false;
+        }
+
+        static void WireRiderHands(GameObject rider)
+        {
+            var malbersRider = rider.GetComponent<MRider>();
+            var animator = rider.GetComponent<Animator>();
+            if (!malbersRider || !animator)
+                return;
+
+            animator.Rebind();
+            animator.Update(0f);
+
+            var left = animator.isHuman
+                ? animator.GetBoneTransform(HumanBodyBones.LeftHand)
+                : null;
+            var right = animator.isHuman
+                ? animator.GetBoneTransform(HumanBodyBones.RightHand)
+                : null;
+
+            if (!left || !right)
+            {
+                foreach (var bone in rider.GetComponentsInChildren<Transform>(true))
+                {
+                    if (!left && bone.name == "R_L Hand") left = bone;
+                    if (!right && bone.name == "R_R Hand") right = bone;
+                }
+            }
+
+            if (!left || !right)
+            {
+                Debug.LogWarning("[TripoJockeyInstaller] Could not locate the original Malbers hand bones.");
+                return;
+            }
+
+            var serializedRider = new SerializedObject(malbersRider);
+            serializedRider.FindProperty("LeftHand").objectReferenceValue = left;
+            serializedRider.FindProperty("RightHand").objectReferenceValue = right;
+            serializedRider.ApplyModifiedPropertiesWithoutUndo();
+
+            if (PrefabUtility.IsPartOfPrefabInstance(rider))
+                PrefabUtility.RecordPrefabInstancePropertyModifications(malbersRider);
         }
     }
 }

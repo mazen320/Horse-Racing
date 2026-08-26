@@ -13,8 +13,9 @@ namespace HorseRacing.Race.Editor
         const string FbxPath = "Assets/TripoModels/jockey_3d_model/jockey_3d_model.fbx";
         const string ControllerPath = "Assets/Malbers Animations/Horse AnimSet Pro/2 - Animations/AC Human v5 Rider.controller";
 
-        static readonly Vector3 SeatPosition = new(0f, 0.77f, 0.05f);
-        static readonly Vector3 SeatScale = new(1.89f, 1.89f, 1.89f);
+        static readonly Vector3 SeatPosition = new(0.00449071f, -0.1047014f, -0.03018377f);
+        static readonly Vector3 SeatEuler = new(0f, 180f, 0f);
+        static readonly Vector3 SeatScale = new(2.080597f, 2.080597f, 2.080597f);
 
         [MenuItem("Horse Racing/Setup Tripo Jockey (Simple — One Rig)")]
         public static void SetupFromMenu()
@@ -40,12 +41,12 @@ namespace HorseRacing.Race.Editor
 
             var jockeyVisual = EnsureJockeyVisual(rider);
             jockeyVisual.localPosition = SeatPosition;
-            jockeyVisual.localRotation = Quaternion.identity;
+            jockeyVisual.localRotation = Quaternion.Euler(SeatEuler);
             jockeyVisual.localScale = SeatScale;
-            ApplyTripoAxisFix(jockeyVisual);
 
             EnsureTripoAnimatorOnVisual(rider, jockeyVisual.gameObject);
             WireRiderHands(rider);
+            RestoreImportedChildTransforms(jockeyVisual);
 
             EditorUtility.SetDirty(rider);
             EditorSceneManager.MarkSceneDirty(rider.scene);
@@ -70,9 +71,6 @@ namespace HorseRacing.Race.Editor
             var jv = rider.transform.Find("JockeyVisual") ?? rider.transform.Find("TripoJockeyVisual");
             if (jv)
             {
-                var sync = jv.GetComponent<RiderAnimatorSynchronizer>();
-                if (sync) Object.DestroyImmediate(sync);
-
                 var mirror = jv.GetComponent<TripoJockeyVisualMirror>();
                 if (mirror) Object.DestroyImmediate(mirror);
 
@@ -124,7 +122,7 @@ namespace HorseRacing.Race.Editor
         {
             var riderAnimator = rider.GetComponent<Animator>();
             if (riderAnimator)
-                riderAnimator.enabled = false;
+                riderAnimator.enabled = true;
 
             var animator = jockeyVisual.GetComponent<Animator>();
             if (!animator)
@@ -147,6 +145,12 @@ namespace HorseRacing.Race.Editor
             animator.applyRootMotion = false;
             animator.enabled = true;
 
+            var synchronizer = jockeyVisual.GetComponent<RiderAnimatorSynchronizer>();
+            if (!synchronizer)
+                synchronizer = jockeyVisual.AddComponent<RiderAnimatorSynchronizer>();
+            synchronizer.Configure(riderAnimator, animator, rider.GetComponent<MRider>());
+            EditorUtility.SetDirty(synchronizer);
+
             var serializedAnimator = new SerializedObject(animator);
             if (tripAvatar)
                 serializedAnimator.FindProperty("m_Avatar").objectReferenceValue = tripAvatar;
@@ -161,7 +165,7 @@ namespace HorseRacing.Race.Editor
             if (riderAnimator)
             {
                 var serializedRiderAnimator = new SerializedObject(riderAnimator);
-                serializedRiderAnimator.FindProperty("m_Enabled").boolValue = false;
+                serializedRiderAnimator.FindProperty("m_Enabled").boolValue = true;
                 serializedRiderAnimator.ApplyModifiedPropertiesWithoutUndo();
                 if (PrefabUtility.IsPartOfPrefabInstance(rider))
                     PrefabUtility.RecordPrefabInstancePropertyModifications(riderAnimator);
@@ -183,18 +187,12 @@ namespace HorseRacing.Race.Editor
             return instance.transform;
         }
 
-        static void ApplyTripoAxisFix(Transform jockeyVisual)
+        static void RestoreImportedChildTransforms(Transform jockeyVisual)
         {
             foreach (Transform child in jockeyVisual)
             {
-                if (child.name == "Armature" || child.name.Contains("tripo_node"))
-                {
-                    child.localRotation = Quaternion.Euler(270f, 0f, 0f);
-                    child.localScale = Vector3.one;
-
-                    if (PrefabUtility.IsPartOfPrefabInstance(child.gameObject))
-                        PrefabUtility.RecordPrefabInstancePropertyModifications(child);
-                }
+                if (PrefabUtility.IsPartOfPrefabInstance(child.gameObject))
+                    PrefabUtility.RevertObjectOverride(child, InteractionMode.AutomatedAction);
             }
 
             if (PrefabUtility.IsPartOfPrefabInstance(jockeyVisual.gameObject))
@@ -214,8 +212,6 @@ namespace HorseRacing.Race.Editor
 
             if (animator && animator.avatar != null && animator.avatar.isValid && animator.avatar.isHuman)
             {
-                animator.Rebind();
-                animator.Update(0f);
                 left = animator.GetBoneTransform(HumanBodyBones.LeftHand);
                 right = animator.GetBoneTransform(HumanBodyBones.RightHand);
             }
