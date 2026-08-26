@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using DG.Tweening;
 using HorseRacing.Race;
@@ -147,6 +148,7 @@ namespace HorseRacing.UI
 
         FlowState _state = FlowState.StartPage;
         float _raceStartTime;
+        long _raceStartUtcTicks;
         float _raceEndTime = -1f;
         float _player1Time = -1f;
         float _player2Time = -1f;
@@ -164,6 +166,10 @@ namespace HorseRacing.UI
         Color _player2HighlightRestColor = Color.white;
         bool _highlightRestCached;
         bool _showingVerdict;
+        bool _nameplatesLayoutReady;
+
+        /// <summary>Fired when the race clock starts (after countdown), with UTC ticks for tablet sync.</summary>
+        public event Action<long> RaceStarted;
 
         bool Solo => playerCount <= 1;
 
@@ -320,8 +326,9 @@ namespace HorseRacing.UI
             _player1Time = -1f;
             _player2Time = -1f;
             _raceEndTime = -1f;
+            _raceStartUtcTicks = 0;
             RefreshRaceTimer(0f);
-            RefreshPlayerNames();
+            PrepareNameplateLayout();
             _flowCoroutine = StartCoroutine(RunSplitScreenRace());
         }
 
@@ -330,6 +337,8 @@ namespace HorseRacing.UI
             RestartDrivers(inputEnabled: false);
             RaceCameraTarget.SnapAllAfterTeleport();
 
+            // Names and plate widths must be settled before the HUD fades in.
+            PrepareNameplateLayout();
             ApplyState(FlowState.Countdown);
             yield return RunCountdown();
 
@@ -337,9 +346,11 @@ namespace HorseRacing.UI
                 startGate.Open();
 
             SetDriversInputEnabled(true);
+            _raceStartUtcTicks = DateTime.UtcNow.Ticks;
             _raceStartTime = Time.time;
             _raceEndTime = -1f;
             RefreshRaceTimer(0f);
+            RaceStarted?.Invoke(_raceStartUtcTicks);
 
             ApplyState(FlowState.Racing);
             _flowCoroutine = null;
@@ -360,7 +371,7 @@ namespace HorseRacing.UI
         {
             playerCount = Mathf.Clamp(players, 1, 2);
             ApplyViewLayout();
-            RefreshPlayerNames();
+            PrepareNameplateLayout();
         }
 
         void ApplyViewLayout()
@@ -580,6 +591,7 @@ namespace HorseRacing.UI
             _player1Time = -1f;
             _player2Time = -1f;
             _raceEndTime = -1f;
+            _raceStartUtcTicks = 0;
             _player1BoardPosition = 0;
             _player2BoardPosition = 0;
             PrepareRaceFieldForMenu();
@@ -592,7 +604,7 @@ namespace HorseRacing.UI
                 player1Name = player1.Trim();
             if (!string.IsNullOrWhiteSpace(player2))
                 player2Name = player2.Trim();
-            RefreshPlayerNames();
+            PrepareNameplateLayout();
         }
 
         void KillTweens()
@@ -996,8 +1008,16 @@ namespace HorseRacing.UI
 
             var elapsed = elapsedOverride ?? (_state == FlowState.Results && _raceEndTime >= 0f
                 ? _raceEndTime
-                : Time.time - _raceStartTime);
+                : GetRaceElapsed());
             raceTimerText.text = FormatTime(elapsed, timerMonospaceEm);
+        }
+
+        float GetRaceElapsed()
+        {
+            if (_raceStartUtcTicks > 0)
+                return Mathf.Max(0f, (DateTime.UtcNow.Ticks - _raceStartUtcTicks) / (float)TimeSpan.TicksPerSecond);
+
+            return Mathf.Max(0f, Time.time - _raceStartTime);
         }
 
         /// <summary>
@@ -1060,13 +1080,66 @@ namespace HorseRacing.UI
             // "ALEX — WON" the moment anything else refreshed the HUD.
             if (_showingVerdict) return;
 
+            ApplyNameTexts();
+            FitNameplatesIfActive();
+        }
+
+        void ApplyNameTexts()
+        {
             if (player1NameText)
                 player1NameText.text = string.IsNullOrWhiteSpace(player1Name) ? "PLAYER 1" : player1Name.ToUpperInvariant();
             if (player2NameText)
                 player2NameText.text = string.IsNullOrWhiteSpace(player2Name) ? "PLAYER 2" : player2Name.ToUpperInvariant();
+        }
 
+        void FitNameplatesIfActive()
+        {
+            if (!NameplatesActiveForLayout())
+                return;
+
+            DoFitNameplates();
+        }
+
+        bool NameplatesActiveForLayout() =>
+            player1Nameplate && player1Nameplate.gameObject.activeInHierarchy;
+
+        void DoFitNameplates()
+        {
             FitNameplate(player1NameText, player1Underline, player1Plate);
             FitNameplate(player2NameText, player2Underline, player2Plate);
+        }
+
+        /// <summary>
+        /// Sizes underline/plate while nameplates are still off-screen so the HUD does not
+        /// visibly reflow when countdown starts.
+        /// </summary>
+        void PrepareNameplateLayout()
+        {
+            if (_showingVerdict) return;
+
+            var hideAfter = !ShowsRaceView(_state);
+            var p1WasActive = player1Nameplate && player1Nameplate.gameObject.activeSelf;
+            var p2WasActive = player2Nameplate && player2Nameplate.gameObject.activeSelf;
+
+            if (player1Nameplate)
+                player1Nameplate.gameObject.SetActive(true);
+            if (player2Nameplate)
+                player2Nameplate.gameObject.SetActive(!Solo);
+
+            ApplyNameTexts();
+            DoFitNameplates();
+            Canvas.ForceUpdateCanvases();
+            DoFitNameplates();
+
+            _nameplatesLayoutReady = true;
+
+            if (hideAfter)
+            {
+                if (!p1WasActive && player1Nameplate)
+                    player1Nameplate.gameObject.SetActive(false);
+                if (!p2WasActive && player2Nameplate)
+                    player2Nameplate.gameObject.SetActive(false);
+            }
         }
 
         /// <summary>Keeps the coral bar and cream plate hugging the name, however long it is.</summary>
@@ -1118,7 +1191,16 @@ namespace HorseRacing.UI
                 ResetNameplateScales();
             }
 
-            RefreshPlayerNames();
+            if (!_showingVerdict)
+            {
+                if (newState == FlowState.Countdown && _nameplatesLayoutReady)
+                    ApplyNameTexts();
+                else
+                    RefreshPlayerNames();
+            }
+
+            if (newState == FlowState.Countdown)
+                _nameplatesLayoutReady = false;
 
             if (newState != FlowState.Results)
             {
@@ -1142,7 +1224,7 @@ namespace HorseRacing.UI
                 instant);
 
             if (inGame && previous != FlowState.Countdown && previous != FlowState.Racing)
-                PlayNameplateIntro(instant);
+                PlayNameplateIntro(instant || newState == FlowState.Countdown);
         }
 
         static bool ShowsRaceView(FlowState state) =>

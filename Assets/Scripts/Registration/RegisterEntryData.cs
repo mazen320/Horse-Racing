@@ -12,6 +12,8 @@ namespace HorseRacing.Registration
         public bool start;
         public bool restart;
         public bool endGame;
+        public bool raceStarted;
+        public long raceStartUtcTicks;
 
         public void SetTime()
         {

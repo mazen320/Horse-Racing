@@ -1,3 +1,4 @@
+using System;
 using System.IO;
 using UnityEngine;
 
@@ -36,6 +37,9 @@ namespace HorseRacing.Registration
             server.StartCommandReceived += OnStartCommand;
             server.RestartCommandReceived += OnRestart;
             server.EndGameCommandReceived += OnEndGame;
+
+            if (uiManager)
+                uiManager.RaceStarted += OnRaceStarted;
         }
 
         void OnDisable()
@@ -47,6 +51,14 @@ namespace HorseRacing.Registration
             server.StartCommandReceived -= OnStartCommand;
             server.RestartCommandReceived -= OnRestart;
             server.EndGameCommandReceived -= OnEndGame;
+
+            if (uiManager)
+                uiManager.RaceStarted -= OnRaceStarted;
+        }
+
+        void OnRaceStarted(long raceStartUtcTicks)
+        {
+            server?.BroadcastRaceStarted(raceStartUtcTicks);
         }
 
         void OnRegistrationReceived(RegisterEntryData data)

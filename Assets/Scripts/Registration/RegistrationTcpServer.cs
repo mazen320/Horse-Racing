@@ -82,6 +82,8 @@ namespace HorseRacing.Registration
 
             StartDiscoveryBroadcast();
             SendRestart();
+            // SendRestart goes to tablets only; keep the PC UI in sync when the listener boots.
+            EnqueueMain(() => RestartCommandReceived?.Invoke());
 
             if (logTraffic)
                 Debug.Log($"[RegistrationTcpServer] Listening on {listenAddress}:{port}, discovery UDP {discoveryPort}");
@@ -118,9 +120,44 @@ namespace HorseRacing.Registration
             Broadcast(data);
         }
 
+        void SyncRegistrationToClient(ClientState client)
+        {
+            if (!_registered || _lastRegistration.entries == null || _lastRegistration.entries.Count == 0)
+                return;
+
+            try
+            {
+                var ack = _lastRegistration;
+                ack.registered = true;
+                ack.SetTime();
+                var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ack));
+                WriteMessage(client.Stream, bytes);
+
+                if (logTraffic)
+                    Debug.Log($"[RegistrationTcpServer] Re-synced registration to {client.Key}");
+            }
+            catch (Exception ex)
+            {
+                if (logTraffic)
+                    Debug.LogWarning($"[RegistrationTcpServer] Registration sync failed ({client.Key}): {ex.Message}");
+            }
+        }
+
         public void SendPinging()
         {
             Broadcast(new RegisterEntryData { pinging = true });
+        }
+
+        public void BroadcastRaceStarted(long raceStartUtcTicks)
+        {
+            Broadcast(new RegisterEntryData
+            {
+                raceStarted = true,
+                raceStartUtcTicks = raceStartUtcTicks
+            });
+
+            if (logTraffic)
+                Debug.Log($"[RegistrationTcpServer] Race started broadcast (utc ticks {raceStartUtcTicks})");
         }
 
         void StartDiscoveryBroadcast()
@@ -182,6 +219,7 @@ namespace HorseRacing.Registration
                         ClientConnectionChanged?.Invoke(true);
                         if (logTraffic)
                             Debug.Log($"[RegistrationTcpServer] Client connected: {key}");
+                        SyncRegistrationToClient(state);
                     });
 
                     var readThread = new Thread(() => ReadLoop(state)) { IsBackground = true };
@@ -290,7 +328,7 @@ namespace HorseRacing.Registration
 
         void ProcessMessage(RegisterEntryData data)
         {
-            if (data.pinging)
+            if (data.pinging || data.raceStarted)
                 return;
 
             if (data.restart)
@@ -329,8 +367,7 @@ namespace HorseRacing.Registration
             {
                 if (!_registered || _lastRegistration.entries == null || _lastRegistration.entries.Count == 0)
                 {
-                    if (logTraffic)
-                        Debug.LogWarning("[RegistrationTcpServer] Start ignored — no active registration");
+                    Debug.LogWarning("[RegistrationTcpServer] Start ignored — no active registration on server");
                     return;
                 }
 
