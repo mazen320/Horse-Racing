@@ -6,8 +6,7 @@ namespace HorseRacing.Race
 {
     /// <summary>
     /// The winning post. Paints a line across the running surface and tells every
-    /// driver to finish there, so a race ends in front of the crowd on the home
-    /// straight instead of wherever a whole lap happens to land — which was back
+    /// driver to finish there, so a race ends on a fixed straight instead of back
     /// inside the starting stalls.
     /// </summary>
     [ExecuteAlways]

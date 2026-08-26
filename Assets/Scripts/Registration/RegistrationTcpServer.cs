@@ -323,6 +323,8 @@ namespace HorseRacing.Registration
 
             if (data.endGame)
             {
+                _registered = false;
+                _lastRegistration = new RegisterEntryData();
                 EndGameCommandReceived?.Invoke();
                 if (logTraffic)
                     Debug.Log("[RegistrationTcpServer] End game command received");

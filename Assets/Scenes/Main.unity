@@ -76740,6 +76740,20 @@ MonoBehaviour:
   countdownCG: {fileID: 868165470}
   countdownText: {fileID: 751141656}
   raceTimerText: {fileID: 1894669974}
+  player1OutcomePlate: {fileID: 0}
+  player1OutcomeNameText: {fileID: 0}
+  player1OutcomeVerdictText: {fileID: 0}
+  player1OutcomeNameUnderline: {fileID: 0}
+  player1OutcomeVerdictUnderline: {fileID: 0}
+  player2OutcomePlate: {fileID: 0}
+  player2OutcomeNameText: {fileID: 0}
+  player2OutcomeVerdictText: {fileID: 0}
+  player2OutcomeNameUnderline: {fileID: 0}
+  player2OutcomeVerdictUnderline: {fileID: 0}
+  resultsHoldSeconds: 6
+  resultsIntroDuration: 0.65
+  resultsIntroEase: 9
+  timerMonospaceEm: 0.62
   player1NameText: {fileID: 1590409939}
   player2NameText: {fileID: 1384633680}
   player1Nameplate: {fileID: 883731905}
@@ -103914,7 +103928,7 @@ MonoBehaviour:
   tapKeys: 3f000000
   lateralOffsetMeters: -3.154
   raceFullSpline: 0
-  raceDistanceMeters: 1240.4562
+  raceDistanceMeters: 568.8781
   courseSpeedMultiplier: 1.35
   onRaceFinished:
     m_PersistentCalls:
@@ -157613,7 +157627,7 @@ MonoBehaviour:
   tapKeys: 0100000025000000
   lateralOffsetMeters: 0
   raceFullSpline: 0
-  raceDistanceMeters: 1240.4562
+  raceDistanceMeters: 568.8781
   courseSpeedMultiplier: 1.35
   onRaceFinished:
     m_PersistentCalls:
@@ -194421,8 +194435,8 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2088646960}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: 0.0000005373224, z: -0, w: 1}
-  m_LocalPosition: {x: 94.499, y: 5.51995, z: -249.99258}
+  m_LocalRotation: {x: -0, y: 0.9999999, z: -0, w: 0.0005132824}
+  m_LocalPosition: {x: -94.558945, y: 5.51995, z: -65.30742}
   m_LocalScale: {x: 27, y: 1, z: 1.1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -194441,8 +194455,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: HorseRacing.Race::HorseRacing.Race.RaceFinishLine
   spline: {fileID: 1425235638}
-  metersFromStart: 102.7
-  lapsBeforeFinish: 1
+  metersFromStart: 568.8781
+  lapsBeforeFinish: 0
   offsetFromRacingLine: -9.21
   trackWidth: 27
   lineDepth: 1.1
