@@ -29,9 +29,9 @@ namespace HorseRacing.Race
 
         void Start() => ApplyTapKeys();
 
-        public void ApplyTapKeys() => ApplyTapKeys(VariableUpdateType.Applied);
-
-        public void ApplyTapKeys(VariableUpdateType updateType)
+        // Single overload on purpose: TabFieldAttribute resolves the callback with
+        // Type.GetMethod(name, flags), which throws AmbiguousMatchException on overloads.
+        public void ApplyTapKeys(VariableUpdateType updateType = VariableUpdateType.Applied)
         {
             ApplyToDriver(player1Driver, player1TapKey, "Player 1");
             ApplyToDriver(player2Driver, player2TapKey, "Player 2");
