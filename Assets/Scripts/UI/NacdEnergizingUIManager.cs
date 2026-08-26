@@ -3,6 +3,7 @@ using DG.Tweening;
 using HorseRacing.Race;
 using TMPro;
 using UnityEngine;
+using UnityEngine.InputSystem;
 using UnityEngine.UI;
 
 namespace HorseRacing.UI
@@ -283,6 +284,16 @@ namespace HorseRacing.UI
             RefreshRaceTimer(0f);
         }
 
+        void Update()
+        {
+            var keyboard = Keyboard.current;
+            if (keyboard == null)
+                return;
+
+            if (keyboard.ctrlKey.isPressed && keyboard.lKey.wasPressedThisFrame)
+                ClearLeaderboardWithCsvBackup();
+        }
+
         void LateUpdate()
         {
             if ((_state == FlowState.Racing || _state == FlowState.Results) && raceTimerText)
@@ -369,6 +380,7 @@ namespace HorseRacing.UI
                 player1Nameplate.anchoredPosition = new Vector2(0f, player1Nameplate.anchoredPosition.y);
             }
 
+            ApplyResultTimePillLayout();
             ApplyTimerPillLayout();
             ApplyResultPillPreview();
         }
@@ -437,6 +449,28 @@ namespace HorseRacing.UI
 
                 return timerPill;
             }
+        }
+
+        /// <summary>
+        /// Result time pills follow the same horizontal lanes as the nameplates: centred
+        /// for solo, left/right quarters for split.
+        /// </summary>
+        void ApplyResultTimePillLayout()
+        {
+            ApplyResultTimePill(player1TimePill, LayoutSolo ? 0.5f : 0.25f);
+            ApplyResultTimePill(player2TimePill, 0.75f);
+        }
+
+        static void ApplyResultTimePill(RectTransform pill, float anchorX)
+        {
+            if (!pill)
+                return;
+
+            var yMin = pill.anchorMin.y;
+            var yMax = pill.anchorMax.y;
+            pill.anchorMin = new Vector2(anchorX, yMin);
+            pill.anchorMax = new Vector2(anchorX, yMax);
+            pill.anchoredPosition = new Vector2(0f, pill.anchoredPosition.y);
         }
 
         /// <summary>

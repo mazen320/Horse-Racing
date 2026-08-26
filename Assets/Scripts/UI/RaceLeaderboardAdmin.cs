@@ -17,12 +17,6 @@ namespace HorseRacing.UI
                 uiManager = FindAnyObjectByType<NacdEnergizingUIManager>();
         }
 
-        void Update()
-        {
-            if (Input.GetKey(KeyCode.LeftControl) && Input.GetKeyDown(KeyCode.L))
-                ClearLeaderboard();
-        }
-
         [TabButton]
         public void ClearLeaderboard()
         {
