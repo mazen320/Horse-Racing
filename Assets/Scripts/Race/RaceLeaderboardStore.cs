@@ -69,5 +69,43 @@ namespace HorseRacing.Race
                 Debug.LogWarning($"Leaderboard could not be written to {_path}: {exception.Message}");
             }
         }
+
+        /// <summary>
+        /// Writes the current board to CSV, clears the live board, then saves empty JSON.
+        /// Returns the backup path, or null when there was nothing to archive.
+        /// </summary>
+        public string ClearWithCsvBackup(DateTime? archivedAt = null)
+        {
+            if (_model.Count == 0)
+            {
+                _model.Clear();
+                Save();
+                return null;
+            }
+
+            var stamp = (archivedAt ?? DateTime.Now).ToString("yyyyMMdd_HHmmss");
+            var directory = Path.GetDirectoryName(_path);
+            if (string.IsNullOrEmpty(directory))
+                directory = Application.persistentDataPath;
+
+            if (!Directory.Exists(directory))
+                Directory.CreateDirectory(directory);
+
+            var backupPath = Path.Combine(directory, $"Leaderboard_backup_{stamp}.csv");
+
+            try
+            {
+                File.WriteAllText(backupPath, RaceLeaderboardModel.BuildCsv(_model.Entries));
+            }
+            catch (Exception exception)
+            {
+                Debug.LogWarning($"Leaderboard backup could not be written to {backupPath}: {exception.Message}");
+                return null;
+            }
+
+            _model.Clear();
+            Save();
+            return backupPath;
+        }
     }
 }

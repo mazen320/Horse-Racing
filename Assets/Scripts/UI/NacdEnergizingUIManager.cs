@@ -59,10 +59,22 @@ namespace HorseRacing.UI
         [SerializeField] CanvasGroup countdownCG;
         [SerializeField] TMP_Text countdownText;
         [SerializeField] TMP_Text raceTimerText;
-        [Tooltip("Pill behind the race clock. Leave empty to use the race timer text's parent.")]
+        [Tooltip("Shared race clock pill. Shown while racing; hidden when per-player result pills appear.")]
         [SerializeField] RectTransform timerPill;
-        [Tooltip("Gap below the nameplate that the clock drops into on a solo run.")]
+        [Tooltip("Gap below the nameplate that the shared clock drops into on a solo run.")]
         [SerializeField] float soloTimerGap = 8f;
+
+        [Header("Results — per-player time pills (author in scene)")]
+        [Tooltip("Shown at the finish under player 1. Position in the Scene view for split and solo.")]
+        [SerializeField] RectTransform player1TimePill;
+        [SerializeField] TMP_Text player1TimeText;
+        [Tooltip("Shown at the finish under player 2 in split-screen runs.")]
+        [SerializeField] RectTransform player2TimePill;
+        [SerializeField] TMP_Text player2TimeText;
+
+        [Header("Editor HUD preview")]
+        [Tooltip("Toggle in the Inspector to preview solo vs split header layout while editing.")]
+        [SerializeField] bool editorPreviewSoloLayout;
 
         [Header("Results — verdict on the nameplates")]
         [Tooltip("Separator between the rider name and the verdict, e.g. ALEX — WON.")]
@@ -92,7 +104,6 @@ namespace HorseRacing.UI
         [Tooltip("Longest wait for the horses to finish pulling up before the verdict appears.")]
         [SerializeField] float runOutWaitSeconds = 3.6f;
         [SerializeField] float verdictHoldSeconds = 1.1f;
-        [SerializeField] float resultsHoldSeconds = 7f;
         [SerializeField] float resultsIntroDuration = 0.65f;
         [SerializeField] Ease resultsIntroEase = Ease.OutCubic;
         [SerializeField] float verdictPopScale = 1.08f;
@@ -155,6 +166,15 @@ namespace HorseRacing.UI
 
         bool Solo => playerCount <= 1;
 
+        bool PreviewSolo =>
+#if UNITY_EDITOR
+            !Application.isPlaying && editorPreviewSoloLayout;
+#else
+            false;
+#endif
+
+        bool LayoutSolo => Solo || PreviewSolo;
+
         void OnEnable()
         {
             enabled = true;
@@ -164,6 +184,7 @@ namespace HorseRacing.UI
         {
             enabled = true;
             ResolveRaceDrivers();
+            ResolveTimeTextRefs();
             CacheNameplateRestPositions();
             ApplyViewLayout();
             ConfigureRaceTimer();
@@ -171,6 +192,11 @@ namespace HorseRacing.UI
             CacheHighlightRestColors();
             LoadLeaderboard();
             SetLeaderboardVisible(false, true);
+            if (Application.isPlaying)
+            {
+                HidePlayerTimePill(player1TimePill);
+                HidePlayerTimePill(player2TimePill);
+            }
 
             WireButton(startContinueButton, OnStartContinue);
             WireButton(instructionsStartButton, OnInstructionsStart);
@@ -291,6 +317,7 @@ namespace HorseRacing.UI
         IEnumerator RunSplitScreenRace()
         {
             RestartDrivers(inputEnabled: false);
+            RaceCameraTarget.SnapAllAfterTeleport();
 
             ApplyState(FlowState.Countdown);
             yield return RunCountdown();
@@ -327,22 +354,78 @@ namespace HorseRacing.UI
 
         void ApplyViewLayout()
         {
-            if (viewLayout)
+            if (viewLayout && Application.isPlaying)
                 viewLayout.Apply(playerCount);
 
             if (player2Nameplate)
-                player2Nameplate.gameObject.SetActive(!Solo);
+                player2Nameplate.gameObject.SetActive(!LayoutSolo);
 
             // One rider gets the whole width so the plate sits centre screen instead of
             // hugging the left half where the split divider used to be.
             if (player1Nameplate)
             {
                 player1Nameplate.anchorMin = new Vector2(0f, 1f);
-                player1Nameplate.anchorMax = new Vector2(Solo ? 1f : 0.5f, 1f);
+                player1Nameplate.anchorMax = new Vector2(LayoutSolo ? 1f : 0.5f, 1f);
                 player1Nameplate.anchoredPosition = new Vector2(0f, player1Nameplate.anchoredPosition.y);
             }
 
             ApplyTimerPillLayout();
+            ApplyResultPillPreview();
+        }
+
+        void ResolveTimeTextRefs()
+        {
+            if (player1TimePill && !player1TimeText)
+                player1TimeText = player1TimePill.GetComponentInChildren<TMP_Text>(true);
+            if (player2TimePill && !player2TimeText)
+                player2TimeText = player2TimePill.GetComponentInChildren<TMP_Text>(true);
+
+            ConfigureResultTimeText(player1TimeText);
+            ConfigureResultTimeText(player2TimeText);
+        }
+
+        static void ConfigureResultTimeText(TMP_Text text)
+        {
+            if (!text) return;
+            text.richText = true;
+            text.enableAutoSizing = false;
+            text.alignment = TextAlignmentOptions.Center;
+        }
+
+#if UNITY_EDITOR
+        void OnValidate()
+        {
+            if (Application.isPlaying)
+                return;
+
+            ResolveTimeTextRefs();
+            ApplyViewLayout();
+        }
+#endif
+
+        /// <summary>
+        /// In the editor, keep the result pills visible with sample times so you can
+        /// drag them into place for split and solo without entering Play Mode.
+        /// </summary>
+        void ApplyResultPillPreview()
+        {
+#if UNITY_EDITOR
+            if (Application.isPlaying)
+                return;
+
+            SetResultPillPreview(player1TimePill, player1TimeText, "0:12.3", true);
+            SetResultPillPreview(player2TimePill, player2TimeText, "0:14.8", !LayoutSolo);
+#endif
+        }
+
+        static void SetResultPillPreview(RectTransform pill, TMP_Text label, string sample, bool visible)
+        {
+            if (!pill)
+                return;
+
+            pill.gameObject.SetActive(visible);
+            if (visible && label)
+                label.text = sample;
         }
 
         RectTransform TimerPill
@@ -375,9 +458,66 @@ namespace HorseRacing.UI
 
             var drop = player1Nameplate ? player1Nameplate.rect.height + soloTimerGap : 0f;
 
-            pill.anchoredPosition = Solo
+            pill.anchoredPosition = LayoutSolo
                 ? new Vector2(_timerPillRestPos.x, _timerPillRestPos.y - drop)
                 : _timerPillRestPos;
+        }
+
+        /// <summary>
+        /// At the finish the shared clock steps aside and each rider's authored pill
+        /// under their nameplate shows their time.
+        /// </summary>
+        void ShowPlayerTimePills()
+        {
+            var pill = TimerPill;
+            if (pill)
+                pill.gameObject.SetActive(false);
+
+            UpdatePlayerTimePill(player1TimePill, player1TimeText, _player1Time);
+            UpdatePlayerTimePill(player2TimePill, player2TimeText,
+                Solo || !raceDriverP2 ? -1f : _player2Time);
+        }
+
+        void UpdatePlayerTimePill(RectTransform pill, TMP_Text label, float seconds)
+        {
+            if (!pill)
+                return;
+
+            if (seconds < 0f)
+            {
+                pill.gameObject.SetActive(false);
+                return;
+            }
+
+            if (label)
+                label.text = FormatTime(seconds, timerMonospaceEm);
+
+            pill.gameObject.SetActive(true);
+            pill.DOKill();
+            pill.localScale = Vector3.one * 0.9f;
+            pill.DOScale(1f, resultsIntroDuration)
+                .SetEase(resultsIntroEase)
+                .SetUpdate(true)
+                .SetTarget(pill);
+        }
+
+        void HidePlayerTimePills()
+        {
+            HidePlayerTimePill(player1TimePill);
+            HidePlayerTimePill(player2TimePill);
+
+            var pill = TimerPill;
+            if (pill)
+                pill.gameObject.SetActive(true);
+        }
+
+        static void HidePlayerTimePill(RectTransform pill)
+        {
+            if (!pill)
+                return;
+
+            pill.DOKill();
+            pill.gameObject.SetActive(false);
         }
 
         public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
@@ -387,11 +527,29 @@ namespace HorseRacing.UI
         public void ApplyTabletRestart()
         {
             StopFlow();
+            _flowCoroutine = StartCoroutine(ReturnToStartPage());
+        }
+
+        /// <summary>
+        /// The start page is a full-screen opaque page, so it goes up first and the grid
+        /// reset happens behind it. Re-gridding while the race view is still on screen is
+        /// what made the return read as the camera flying back down the course.
+        /// </summary>
+        IEnumerator ReturnToStartPage()
+        {
+            ApplyState(FlowState.StartPage);
+
+            // TransitionPages delays each fade-in by fadeDuration * 0.35 + pageStagger,
+            // so the page is only fully opaque a little after one whole fade.
+            yield return WaitSeconds(fadeDuration * 1.35f + pageStagger + 0.05f);
+
             _player1Time = -1f;
             _player2Time = -1f;
             _raceEndTime = -1f;
+            _player1BoardPosition = 0;
+            _player2BoardPosition = 0;
             PrepareRaceFieldForMenu();
-            ApplyState(FlowState.StartPage, true);
+            _flowCoroutine = null;
         }
 
         public void SetPlayerNames(string player1, string player2)
@@ -422,6 +580,8 @@ namespace HorseRacing.UI
         {
             leaderboardCG?.DOKill();
             if (leaderboardPanel) leaderboardPanel.DOKill();
+            if (player1TimePill) player1TimePill.DOKill();
+            if (player2TimePill) player2TimePill.DOKill();
             if (leaderboardRows == null) return;
 
             foreach (var row in leaderboardRows)
@@ -531,6 +691,7 @@ namespace HorseRacing.UI
             yield return WaitForRunOut();
 
             ApplyVerdicts();
+            ShowPlayerTimePills();
             AnimateVerdictPop();
             yield return WaitSeconds(verdictHoldSeconds);
 
@@ -538,25 +699,21 @@ namespace HorseRacing.UI
             SetLeaderboardVisible(true, false);
             AnimateLeaderboardIntro();
 
-            yield return WaitSeconds(resultsHoldSeconds);
-
-            SetLeaderboardVisible(false, true);
-            PrepareRaceFieldForMenu();
-            _player1Time = -1f;
-            _player2Time = -1f;
-            _raceEndTime = -1f;
-            _player1BoardPosition = 0;
-            _player2BoardPosition = 0;
-            ApplyState(FlowState.StartPage);
+            // The board stays up. Only the tablet ends the run, because the riders are
+            // looking at this screen and the operator is the one who knows they are done.
             _flowCoroutine = null;
         }
 
+        /// <summary>
+        /// Unscaled on purpose: these beats gate UI fades that themselves run unscaled,
+        /// and a stalled time scale must never leave the flow parked mid-transition.
+        /// </summary>
         static IEnumerator WaitSeconds(float seconds)
         {
             var remaining = Mathf.Max(0f, seconds);
             while (remaining > 0f)
             {
-                remaining -= Time.deltaTime;
+                remaining -= Time.unscaledDeltaTime;
                 yield return null;
             }
         }
@@ -582,6 +739,27 @@ namespace HorseRacing.UI
         {
             _leaderboard = new RaceLeaderboardStore(Mathf.Max(1, leaderboardCapacity));
             _leaderboard.Load();
+        }
+
+        /// <summary>
+        /// Archives the current board to CSV beside Leaderboard.json, clears the live
+        /// board, and refreshes any rows already on screen.
+        /// </summary>
+        public void ClearLeaderboardWithCsvBackup()
+        {
+            if (_leaderboard == null)
+                LoadLeaderboard();
+
+            var backupPath = _leaderboard.ClearWithCsvBackup();
+            _player1BoardPosition = 0;
+            _player2BoardPosition = 0;
+
+            if (!string.IsNullOrEmpty(backupPath))
+                Debug.Log($"Leaderboard cleared. CSV backup saved to {backupPath}");
+            else
+                Debug.Log("Leaderboard cleared. No entries were archived.");
+
+            RefreshLeaderboardRows();
         }
 
         void SubmitLeaderboardTimes()
@@ -909,7 +1087,10 @@ namespace HorseRacing.UI
             RefreshPlayerNames();
 
             if (newState != FlowState.Results)
+            {
                 SetLeaderboardVisible(false, instant);
+                HidePlayerTimePills();
+            }
 
             if (player1Nameplate)
                 player1Nameplate.gameObject.SetActive(showHud);

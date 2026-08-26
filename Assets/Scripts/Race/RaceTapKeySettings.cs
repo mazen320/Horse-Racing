@@ -13,18 +13,16 @@ namespace HorseRacing.Race
         [SerializeField] RaceSplineTapDriver player1Driver;
         [SerializeField] RaceSplineTapDriver player2Driver;
 
-        [TabField(nameof(ApplyTapKeys))]
+        [TabField(FieldUpdateMode.Live, nameof(ApplyTapKeys))]
         [SerializeField] string player1TapKey = "A";
 
-        [TabField(nameof(ApplyTapKeys))]
+        [TabField(FieldUpdateMode.Live, nameof(ApplyTapKeys))]
         [SerializeField] string player2TapKey = "L";
 
         void Awake()
         {
             if (!player1Driver || !player2Driver)
                 AutoAssignDrivers();
-
-            SyncFromDrivers();
         }
 
         void Start() => ApplyTapKeys();
@@ -37,18 +35,10 @@ namespace HorseRacing.Race
             ApplyToDriver(player2Driver, player2TapKey, "Player 2");
         }
 
-        void SyncFromDrivers()
-        {
-            if (player1Driver)
-                player1TapKey = player1Driver.GetPrimaryTapKeyLabel();
-            if (player2Driver)
-                player2TapKey = player2Driver.GetPrimaryTapKeyLabel();
-        }
-
         void AutoAssignDrivers()
         {
             var drivers = FindObjectsByType<RaceSplineTapDriver>(
-                FindObjectsInactive.Exclude, FindObjectsSortMode.InstanceID);
+                FindObjectsInactive.Include, FindObjectsSortMode.InstanceID);
 
             for (var i = 0; i < drivers.Length; i++)
             {

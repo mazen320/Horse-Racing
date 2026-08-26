@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using UnityEngine;
 
 namespace HorseRacing.Race
@@ -107,6 +108,40 @@ namespace HorseRacing.Race
         }
 
         public void Clear() => _entries.Clear();
+
+        /// <summary>CSV header and rows for archiving before a clear.</summary>
+        public static string BuildCsv(IReadOnlyList<RaceLeaderboardEntry> entries)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine("Rank,Name,Seconds,Time,RecordedUtc");
+
+            if (entries == null)
+                return builder.ToString();
+
+            for (var i = 0; i < entries.Count; i++)
+            {
+                var entry = entries[i];
+                if (entry == null) continue;
+
+                builder.Append(i + 1).Append(',')
+                    .Append(EscapeCsv(entry.name)).Append(',')
+                    .Append(entry.seconds.ToString("0.000", System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+                    .Append(EscapeCsv(FormatSeconds(entry.seconds))).Append(',')
+                    .Append(EscapeCsv(entry.recordedUtc ?? string.Empty))
+                    .AppendLine();
+            }
+
+            return builder.ToString();
+        }
+
+        static string EscapeCsv(string value)
+        {
+            value ??= string.Empty;
+            if (value.IndexOfAny(new[] { ',', '"', '\r', '\n' }) < 0)
+                return value;
+
+            return $"\"{value.Replace("\"", "\"\"")}\"";
+        }
 
         public static string NormalizeName(string name)
         {

@@ -5,7 +5,8 @@
     "HorseRacing.Race",
     "DOTween.Modules",
     "Unity.TextMeshPro",
-    "Unity.InputSystem"
+    "Unity.InputSystem",
+    "UTool"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],

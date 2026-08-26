@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using NUnit.Framework;
 
 namespace HorseRacing.Race.Tests
@@ -99,6 +100,41 @@ namespace HorseRacing.Race.Tests
             Assert.That(RaceLeaderboardModel.FormatSeconds(75.24f), Is.EqualTo("1:15.2"));
             Assert.That(RaceLeaderboardModel.FormatSeconds(119.96f), Is.EqualTo("1:60.0"));
             Assert.That(RaceLeaderboardModel.FormatSeconds(-3f), Is.EqualTo("0:00.0"));
+        }
+
+        [Test]
+        public void BuildCsv_ListsRankNameSecondsTimeAndRecordedUtc()
+        {
+            var model = new RaceLeaderboardModel(3);
+            model.Submit("Omar", 39.1f, Recorded);
+            model.Submit("Sara", 42.5f, Recorded.AddMinutes(1));
+
+            var csv = RaceLeaderboardModel.BuildCsv(model.Entries);
+
+            Assert.That(csv, Does.StartWith("Rank,Name,Seconds,Time,RecordedUtc"));
+            StringAssert.Contains("1,OMAR,39.100,0:39.1", csv);
+            StringAssert.Contains("2,SARA,42.500,0:42.5", csv);
+        }
+
+        [Test]
+        public void ClearWithCsvBackup_WritesCsvThenClearsJson()
+        {
+            var path = Path.Combine(Path.GetTempPath(), $"leaderboard_test_{Guid.NewGuid():N}.json");
+            var store = new RaceLeaderboardStore(5, Path.GetFileName(path));
+            var storeType = typeof(RaceLeaderboardStore);
+            var pathField = storeType.GetField("_path", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+            pathField.SetValue(store, path);
+
+            store.Submit("Alex", 12.3f);
+            var backupPath = store.ClearWithCsvBackup(new DateTime(2026, 8, 26, 19, 30, 0));
+
+            Assert.That(backupPath, Does.EndWith("Leaderboard_backup_20260826_193000.csv"));
+            Assert.That(File.ReadAllText(backupPath), Does.Contain("ALEX"));
+            Assert.That(store.Model.Count, Is.Zero);
+            Assert.That(File.ReadAllText(path), Does.Contain("\"entries\": []").Or.Contains("\"entries\":[]"));
+
+            if (File.Exists(path)) File.Delete(path);
+            if (File.Exists(backupPath)) File.Delete(backupPath);
         }
     }
 }
