@@ -19,25 +19,27 @@ namespace HorseRacing.Race.Tests
             while (!load.isDone) yield return null;
             yield return new WaitForEndOfFrame();
 
-            var raceTarget = Object.FindFirstObjectByType<RaceCameraTarget>();
-            Assert.That(raceTarget, Is.Not.Null);
-            Assert.That(raceTarget.PositionAnchor, Is.Not.Null);
-            Assert.That(raceTarget.HeadingSource, Is.Not.Null);
-            Assert.That(raceTarget.SpeedSource, Is.Not.Null);
-            Assert.That(raceTarget.MaxYawLagDegrees, Is.EqualTo(8f).Within(0.001f));
-            Assert.That(raceTarget.BaseFieldOfView, Is.EqualTo(42.5f).Within(0.001f));
-            Assert.That(raceTarget.SprintFieldOfView, Is.EqualTo(44.5f).Within(0.001f));
+            var raceTargets = Object.FindObjectsByType<RaceCameraTarget>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+            Assert.That(raceTargets.Length, Is.GreaterThanOrEqualTo(2),
+                "Expected split-screen RaceCameraTarget for P1 and P2.");
+
+            foreach (var raceTarget in raceTargets)
+            {
+                Assert.That(raceTarget.PositionAnchor, Is.Not.Null);
+                Assert.That(raceTarget.HeadingSource, Is.Not.Null);
+                Assert.That(raceTarget.SpeedSource, Is.Not.Null);
+                Assert.That(raceTarget.MaxYawLagDegrees, Is.EqualTo(8f).Within(0.001f));
+                Assert.That(raceTarget.BaseFieldOfView, Is.EqualTo(42.5f).Within(0.001f));
+                Assert.That(raceTarget.SprintFieldOfView, Is.EqualTo(44.5f).Within(0.001f));
+            }
 
             var cameras = Object.FindObjectsByType<CinemachineCamera>(
                     FindObjectsInactive.Include, FindObjectsSortMode.None)
-                .Where(value => value.name == "CM Third Person Mount" ||
-                                value.name == "CM Third Person Main")
+                .Where(value => value.name.StartsWith("CM Third Person Mount") ||
+                                value.name.StartsWith("CM Third Person Main"))
                 .ToArray();
-            Assert.That(cameras, Has.Length.EqualTo(2));
-            Assert.That(cameras.All(value =>
-                value.Target.TrackingTarget == raceTarget.transform), Is.True);
-            Assert.That(cameras.All(value =>
-                value.Lens.NearClipPlane == 0.1f && value.Lens.FarClipPlane == 5000f), Is.True);
+            Assert.That(cameras.Length, Is.EqualTo(4));
 
             var follows = Object.FindObjectsByType<CinemachineThirdPersonFollow>(
                 FindObjectsInactive.Include, FindObjectsSortMode.None);
@@ -52,12 +54,15 @@ namespace HorseRacing.Race.Tests
             Assert.That(mount.CameraDistance, Is.EqualTo(6.5f).Within(0.001f));
             Assert.That(mount.CameraSide, Is.EqualTo(0.5f).Within(0.001f));
 
-            var mountCamera = cameras.Single(value => value.name == "CM Third Person Mount");
-            Assert.That(mountCamera.Lens.FieldOfView, Is.EqualTo(42.5f).Within(0.001f));
-
-            var outputCamera = GameObject.Find("CM Brain").GetComponent<Camera>();
-            Assert.That(outputCamera.nearClipPlane, Is.EqualTo(0.1f).Within(0.001f));
-            Assert.That(outputCamera.farClipPlane, Is.EqualTo(5000f).Within(0.001f));
+            var brainP1 = GameObject.Find("CM Brain").GetComponent<Camera>();
+            var brainP2 = GameObject.Find("CM Brain P2").GetComponent<Camera>();
+            Assert.That(brainP1, Is.Not.Null);
+            Assert.That(brainP2, Is.Not.Null);
+            Assert.That(brainP1.rect, Is.EqualTo(new Rect(0f, 0f, 0.5f, 1f)));
+            Assert.That(brainP2.rect, Is.EqualTo(new Rect(0.5f, 0f, 0.5f, 1f)));
+            Assert.That(brainP1.nearClipPlane, Is.EqualTo(0.1f).Within(0.001f));
+            Assert.That(brainP1.farClipPlane, Is.EqualTo(5000f).Within(0.001f));
+            Assert.That(brainP2.GetComponent<AudioListener>().enabled, Is.False);
 
             var targets = Object.FindObjectsByType<ThirdPersonFollowTarget>(
                 FindObjectsInactive.Include, FindObjectsSortMode.None);

@@ -23,6 +23,7 @@ namespace HorseRacing.UI
 
         [Header("Race")]
         [SerializeField] RaceSplineTapDriver raceDriver;
+        [SerializeField] RaceSplineTapDriver raceDriverP2;
 
         [Header("Menu pages")]
         [SerializeField] CanvasGroup menuBackgroundCG;
@@ -81,27 +82,65 @@ namespace HorseRacing.UI
 
         void Awake()
         {
-            if (!raceDriver)
-                raceDriver = FindAnyObjectByType<RaceSplineTapDriver>();
+            ResolveRaceDrivers();
 
             WireButton(startContinueButton, OnStartContinue);
             WireButton(instructionsStartButton, OnInstructionsStart);
 
             if (raceDriver)
             {
-                raceDriver.onRaceFinished.AddListener(OnDriverRaceFinished);
+                raceDriver.onRaceFinished.AddListener(OnDriver1RaceFinished);
                 raceDriver.SetRaceInputEnabled(false);
+            }
+
+            if (raceDriverP2)
+            {
+                raceDriverP2.onRaceFinished.AddListener(OnDriver2RaceFinished);
+                raceDriverP2.SetRaceInputEnabled(false);
             }
 
             RefreshPlayerHeader();
             ApplyState(FlowState.StartPage, true);
         }
 
+        void ResolveRaceDrivers()
+        {
+            if (!raceDriver || !raceDriverP2)
+            {
+                var drivers = FindObjectsByType<RaceSplineTapDriver>(
+                    FindObjectsInactive.Include, FindObjectsSortMode.None);
+                foreach (var driver in drivers)
+                {
+                    if (!driver) continue;
+                    if (!raceDriver && driver.gameObject.name == "Horse Realistic")
+                        raceDriver = driver;
+                    else if (!raceDriverP2 && driver.gameObject.name == "Horse Realistic P2")
+                        raceDriverP2 = driver;
+                }
+
+                if (!raceDriver && drivers.Length > 0)
+                    raceDriver = drivers[0];
+                if (!raceDriverP2 && drivers.Length > 1)
+                {
+                    foreach (var driver in drivers)
+                    {
+                        if (driver != raceDriver)
+                        {
+                            raceDriverP2 = driver;
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+
         void OnDestroy()
         {
             KillTweens();
             if (raceDriver)
-                raceDriver.onRaceFinished.RemoveListener(OnDriverRaceFinished);
+                raceDriver.onRaceFinished.RemoveListener(OnDriver1RaceFinished);
+            if (raceDriverP2)
+                raceDriverP2.onRaceFinished.RemoveListener(OnDriver2RaceFinished);
         }
 
         void Update()
@@ -125,20 +164,13 @@ namespace HorseRacing.UI
 
         IEnumerator RunSplitScreenRace()
         {
-            if (raceDriver)
-            {
-                raceDriver.RestartRace();
-                raceDriver.SetRaceInputEnabled(false);
-            }
+            RestartDrivers(inputEnabled: false);
 
             ApplyState(FlowState.Countdown);
             yield return RunCountdown();
 
-            if (raceDriver)
-            {
-                raceDriver.SetRaceInputEnabled(true);
-                _raceStartTime = Time.time;
-            }
+            SetDriversInputEnabled(true);
+            _raceStartTime = Time.time;
 
             ApplyState(FlowState.Racing);
             _flowCoroutine = null;
@@ -159,11 +191,7 @@ namespace HorseRacing.UI
             StopFlow();
             _player1Time = -1f;
             _player2Time = -1f;
-            if (raceDriver)
-            {
-                raceDriver.RestartRace();
-                raceDriver.SetRaceInputEnabled(false);
-            }
+            RestartDrivers(inputEnabled: false);
             ApplyState(FlowState.StartPage, true);
         }
 
@@ -225,17 +253,49 @@ namespace HorseRacing.UI
                 .SetTarget(t);
         }
 
-        void OnDriverRaceFinished()
+        void OnDriver1RaceFinished()
         {
-            if (_state != FlowState.Racing || !raceDriver)
+            if (_state != FlowState.Racing || _player1Time >= 0f)
                 return;
 
-            raceDriver.SetRaceInputEnabled(false);
-            var finishTime = Time.time - _raceStartTime;
-            _player1Time = finishTime;
-            _player2Time = finishTime;
+            _player1Time = Time.time - _raceStartTime;
+            raceDriver?.SetRaceInputEnabled(false);
             RefreshPlayerHeader();
-            ApplyState(FlowState.StartPage);
+            if (_player2Time >= 0f || !raceDriverP2)
+                ApplyState(FlowState.StartPage);
+        }
+
+        void OnDriver2RaceFinished()
+        {
+            if (_state != FlowState.Racing || _player2Time >= 0f)
+                return;
+
+            _player2Time = Time.time - _raceStartTime;
+            raceDriverP2?.SetRaceInputEnabled(false);
+            RefreshPlayerHeader();
+            if (_player1Time >= 0f || !raceDriver)
+                ApplyState(FlowState.StartPage);
+        }
+
+        void RestartDrivers(bool inputEnabled)
+        {
+            if (raceDriver)
+            {
+                raceDriver.RestartRace();
+                raceDriver.SetRaceInputEnabled(inputEnabled);
+            }
+
+            if (raceDriverP2)
+            {
+                raceDriverP2.RestartRace();
+                raceDriverP2.SetRaceInputEnabled(inputEnabled);
+            }
+        }
+
+        void SetDriversInputEnabled(bool enabled)
+        {
+            raceDriver?.SetRaceInputEnabled(enabled);
+            raceDriverP2?.SetRaceInputEnabled(enabled);
         }
 
         void RefreshInstructions()
@@ -343,8 +403,7 @@ namespace HorseRacing.UI
                 _flowCoroutine = null;
             }
 
-            if (raceDriver)
-                raceDriver.SetRaceInputEnabled(false);
+            SetDriversInputEnabled(false);
         }
     }
 }
