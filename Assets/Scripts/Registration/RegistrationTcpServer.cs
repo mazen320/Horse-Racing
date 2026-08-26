@@ -234,6 +234,24 @@ namespace HorseRacing.Registration
                     if (_clients.ContainsKey(client.Key))
                         _clients[client.Key].PingTimeout = 5;
                 }
+
+                // Registration tablet (EasyTcp) requires ServerToClientPing or it drops after ~5s.
+                try
+                {
+                    var reply = Encoding.UTF8.GetBytes(
+                        JsonConvert.SerializeObject(new PingData
+                        {
+                            validCheck = PingValidCheck,
+                            msg = ServerPingMsg
+                        }));
+                    WriteMessage(client.Stream, reply);
+                }
+                catch (Exception ex)
+                {
+                    if (logTraffic)
+                        Debug.LogWarning($"[RegistrationTcpServer] Ping reply failed ({client.Key}): {ex.Message}");
+                }
+
                 return;
             }
 

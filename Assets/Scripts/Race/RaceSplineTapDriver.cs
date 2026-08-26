@@ -23,9 +23,15 @@ namespace HorseRacing.Race
         public MAnimal animal;
         public Animator animator;
         public Animator riderAnimator;
+        [Tooltip("Optional. When set, this driver mounts/anim-syncs only this rider (needed for multi-horse).")]
+        [SerializeField] MRider rider;
 
         [Header("Keyboard tap bindings")]
         [SerializeField] Key[] tapKeys = { Key.Space, Key.W, Key.UpArrow };
+
+        [Header("Lane / split-screen")]
+        [Tooltip("Meters to the track's right (+) / left (−). Same spline progress, parallel lane.")]
+        public float lateralOffsetMeters;
 
         [Header("Short event race")]
         [Tooltip("Finish after one complete lap of the closed presentation spline. Disable to use the custom distance below.")]
@@ -181,11 +187,8 @@ namespace HorseRacing.Race
         {
             if (!animal) animal = GetComponent<MAnimal>();
             if (!animator) animator = GetComponent<Animator>();
-            if (!riderAnimator)
-            {
-                var rider = FindAnyObjectByType<MalbersAnimations.HAP.MRider>();
-                if (rider) riderAnimator = rider.Anim;
-            }
+            if (!rider) rider = ResolveRider();
+            if (!riderAnimator && rider) riderAnimator = rider.Anim;
             _rigidbody = GetComponent<Rigidbody>();
 
             if (!splineContainer)
@@ -400,9 +403,29 @@ namespace HorseRacing.Race
 
         void EnsureRiderMounted()
         {
-            var rider = FindFirstObjectByType<MRider>(FindObjectsInactive.Include);
+            if (!rider) rider = ResolveRider();
             if (rider == null || rider.IsRiding) return;
             rider.Start_Mounted(gameObject);
+        }
+
+        MRider ResolveRider()
+        {
+            if (rider) return rider;
+
+            // Prefer a rider already linked to this horse's Mount.
+            var mount = GetComponentInChildren<Mount>(true);
+            var riders = FindObjectsByType<MRider>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+            if (mount != null)
+            {
+                foreach (var candidate in riders)
+                {
+                    if (candidate != null && candidate.Montura == mount)
+                        return candidate;
+                }
+            }
+
+            // Fallback: single-rider scenes keep previous behavior.
+            return riders != null && riders.Length == 1 ? riders[0] : null;
         }
 
         void OnAnimatorMove()
@@ -520,9 +543,9 @@ namespace HorseRacing.Race
         void ApplyPose(bool instant)
         {
             var t = Mathf.Repeat(_normalizedT, 1f);
-            transform.position = (Vector3)splineContainer.EvaluatePosition(t);
-
             var look = LookAlongSpline(t);
+            transform.position = EvaluateLanePosition(t, look);
+
             var wantedYaw = Quaternion.LookRotation(look, Vector3.up).eulerAngles.y;
             var yaw = transform.eulerAngles.y;
 
@@ -537,6 +560,21 @@ namespace HorseRacing.Race
             }
 
             transform.rotation = Quaternion.Euler(0f, yaw, 0f);
+        }
+
+        Vector3 EvaluateLanePosition(float t, Vector3 trackForward)
+        {
+            var center = (Vector3)splineContainer.EvaluatePosition(t);
+            if (Mathf.Abs(lateralOffsetMeters) < 0.0001f)
+                return center;
+
+            var right = Vector3.Cross(trackForward, Vector3.up);
+            if (right.sqrMagnitude < 0.0001f)
+                right = Vector3.right;
+            else
+                right.Normalize();
+
+            return center + right * lateralOffsetMeters;
         }
 
         Vector3 LookAlongSpline(float t)
