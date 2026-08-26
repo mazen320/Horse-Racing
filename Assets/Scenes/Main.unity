@@ -29911,6 +29911,11 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 1887186610726282848, guid: 434c7a963da6a1c4985377d8dc5df089, type: 3}
   m_PrefabInstance: {fileID: 7779741381208268221}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &136831666 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 6851000056160206390, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+  m_PrefabInstance: {fileID: 1736133621}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &137285603
 GameObject:
   m_ObjectHideFlags: 0
@@ -31537,7 +31542,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 502f54f527007a645839081f4509ac0b, type: 2}
+  - {fileID: 2100000, guid: ed243d4226c065142b30cd662b0939c2, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -43886,6 +43891,10 @@ PrefabInstance:
     - target: {fileID: 4760924958736496883, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
       propertyPath: AvoidObstacles.DampingIntoCollision
       value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 5134015732527033597, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5134015732527033597, guid: f9027957a9d5b624b849579212e0a69a, type: 3}
       propertyPath: AmplitudeGain
@@ -62188,7 +62197,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -65221,6 +65230,10 @@ PrefabInstance:
     - target: {fileID: 6887881571726309435, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: AvoidObstacles.DampingIntoCollision
       value: 0.1
+      objectReference: {fileID: 0}
+    - target: {fileID: 6949209804260920180, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
+      propertyPath: m_Enabled
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6949209804260920180, guid: 638789fb4ddfb25409556cfa7d61bd6d, type: 3}
       propertyPath: AmplitudeGain
@@ -75122,7 +75135,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 688804583}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0c11265b855408d42af33d62691f5194, type: 3}
   m_Name: 
@@ -75169,7 +75182,7 @@ MonoBehaviour:
   WorldUpOverride: {fileID: 0}
   ChannelMask: 2
   UpdateMethod: 1
-  BlendUpdateMethod: 0
+  BlendUpdateMethod: 1
   LensModeOverride:
     Enabled: 0
     DefaultMode: 2
@@ -76711,6 +76724,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: HorseRacing.UI::HorseRacing.UI.NacdEnergizingUIManager
   raceDriver: {fileID: 1729164396}
   raceDriverP2: {fileID: 959273692}
+  viewLayout: {fileID: 1531220881}
+  startGate: {fileID: 1736133623}
+  playerCount: 2
   menuBackgroundCG: {fileID: 2076123506}
   startPageCG: {fileID: 973679142}
   instructionsPageCG: {fileID: 601520479}
@@ -77918,8 +77934,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4285752906
-  m_fontColor: {r: 0.29, g: 0.4, b: 0.45, a: 1}
+    rgba: 4292932088
+  m_fontColor: {r: 0.972, g: 0.945, b: 0.878, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -78849,8 +78865,16 @@ PrefabInstance:
       propertyPath: UpdateMethod
       value: 1
       objectReference: {fileID: 0}
+    - target: {fileID: 114794346622778406, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
+      propertyPath: BlendUpdateMethod
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 6876082612800764315, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
       propertyPath: Gain
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6876082612800764315, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
+      propertyPath: m_Enabled
       value: 0
       objectReference: {fileID: 0}
     m_RemovedComponents: []
@@ -78861,6 +78885,11 @@ PrefabInstance:
 --- !u!4 &780162750 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 4973453112627144, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
+  m_PrefabInstance: {fileID: 780162749}
+  m_PrefabAsset: {fileID: 0}
+--- !u!20 &780162756 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 20092073445527294, guid: 7721b17458de7274da9fb6df12db1326, type: 3}
   m_PrefabInstance: {fileID: 780162749}
   m_PrefabAsset: {fileID: 0}
 --- !u!1001 &782209240
@@ -79875,7 +79904,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 815377586}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 68bb026fafb42b14791938953eaace77, type: 3}
   m_Name: 
@@ -80143,7 +80172,7 @@ PrefabInstance:
     - target: {fileID: 8960482932687356470, guid: cc2c9c505f6663040b7d9a613754c540, type: 3}
       propertyPath: 'm_Materials.Array.data[0]'
       value: 
-      objectReference: {fileID: 2100000, guid: 502f54f527007a645839081f4509ac0b, type: 2}
+      objectReference: {fileID: 2100000, guid: 322ef13a62c6d0c468ea93e86c4080be, type: 2}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
@@ -90085,7 +90114,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 0.878, g: 0.812, b: 0.686, a: 0.34}
+  m_Color: {r: 0.045, g: 0.075, b: 0.09, a: 0.5}
   m_RaycastTarget: 0
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -103883,9 +103912,9 @@ MonoBehaviour:
   riderAnimator: {fileID: 132036417}
   rider: {fileID: 132036420}
   tapKeys: 3f000000
-  lateralOffsetMeters: -2.2
-  raceFullSpline: 1
-  raceDistanceMeters: 125
+  lateralOffsetMeters: -3.154
+  raceFullSpline: 0
+  raceDistanceMeters: 1240.4562
   courseSpeedMultiplier: 1.35
   onRaceFinished:
     m_PersistentCalls:
@@ -105586,7 +105615,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -133259,7 +133288,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -147527,7 +147556,7 @@ SkinnedMeshRenderer:
   m_RenderingLayerMask: 4294967295
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -150652,6 +150681,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1531220880}
+  - component: {fileID: 1531220881}
   m_Layer: 0
   m_Name: RaceSetup
   m_TagString: Untagged
@@ -150685,8 +150715,26 @@ Transform:
   - {fileID: 688804584}
   - {fileID: 815377587}
   - {fileID: 1996673469}
+  - {fileID: 2088646961}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1531220881
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1531220879}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f3858c7260a31464ba5cbe9a3dd8c50d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HorseRacing.Race::HorseRacing.Race.RaceViewLayout
+  player1Camera: {fileID: 780162756}
+  player2Camera: {fileID: 688804590}
+  splitDivider: {fileID: 926061750}
+  player2Horse: {fileID: 959273684}
+  player2Rider: {fileID: 132036410}
 --- !u!1001 &1532608630
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -157563,9 +157611,9 @@ MonoBehaviour:
   riderAnimator: {fileID: 0}
   rider: {fileID: 1481846390}
   tapKeys: 0100000025000000
-  lateralOffsetMeters: 2.2
-  raceFullSpline: 1
-  raceDistanceMeters: 125
+  lateralOffsetMeters: 0
+  raceFullSpline: 0
+  raceDistanceMeters: 1240.4562
   courseSpeedMultiplier: 1.35
   onRaceFinished:
     m_PersistentCalls:
@@ -157854,6 +157902,90 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 699859292}
     m_Modifications:
+    - target: {fileID: 576749531003219330, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 639188003547753181, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 669162167677242689, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 820621311772028976, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1487312285311569327, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1717330804249382854, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1951440313881186432, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3243060294326313503, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3368249765638077575, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 3669785443903706216, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4136084258254650930, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4138518320799088424, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4467564046833787045, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 4723699810325735556, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5423901933197137045, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5520111492092874435, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5618791517089423078, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5647541767921674825, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5699752378105556254, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 5734927123989667394, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6063133062302632966, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6077736254721254540, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
       propertyPath: m_RootOrder
       value: 38
@@ -157898,20 +158030,100 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 6334133840509520805, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6445211941408357890, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6738473649682097916, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6753375599751007195, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 6846206867907816331, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 6851000056160206390, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
       propertyPath: m_Name
       value: PRF_StartGate
       objectReference: {fileID: 0}
+    - target: {fileID: 7118260545181722104, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7206577477199527666, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7256065131050784378, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7321354153674590531, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7345281805111615327, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 7948895896488594902, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8290135623208158598, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8678264523645954992, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 8740893917672026452, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 9199885735724518468, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      propertyPath: m_StaticEditorFlags
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents: []
+    m_AddedComponents:
+    - targetCorrespondingSourceObject: {fileID: 6851000056160206390, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 1736133623}
   m_SourcePrefab: {fileID: 100100000, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
 --- !u!4 &1736133622 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6077736254721254540, guid: d962eb6cecb36f34fae8227b0d76dd0b, type: 3}
   m_PrefabInstance: {fileID: 1736133621}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &1736133623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 136831666}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 768d057ae3cff024caeb2c1be923b7c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HorseRacing.Race::HorseRacing.Race.StartGateDoors
+  gateRoot: {fileID: 1736133622}
+  openTrigger: Open
+  closedStateName: New State
+  leftPanelName: Door_L
+  rightPanelName: Door_R
 --- !u!1 &1737415109
 GameObject:
   m_ObjectHideFlags: 0
@@ -167470,7 +167682,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -172144,7 +172356,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1996673460}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 68bb026fafb42b14791938953eaace77, type: 3}
   m_Name: 
@@ -194182,6 +194394,122 @@ Transform:
   m_CorrespondingSourceObject: {fileID: 4874436218547035819, guid: 53f9e197fde756649af15eee1444c7cb, type: 3}
   m_PrefabInstance: {fileID: 2088042328}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2088646960
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2088646961}
+  - component: {fileID: 2088646964}
+  - component: {fileID: 2088646963}
+  - component: {fileID: 2088646962}
+  m_Layer: 0
+  m_Name: FinishLine
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &2088646961
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088646960}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: 0.0000005373224, z: -0, w: 1}
+  m_LocalPosition: {x: 94.499, y: 5.51995, z: -249.99258}
+  m_LocalScale: {x: 27, y: 1, z: 1.1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1531220880}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2088646962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088646960}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 10127fe88777baf4aaf32ddd685bac48, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HorseRacing.Race::HorseRacing.Race.RaceFinishLine
+  spline: {fileID: 1425235638}
+  metersFromStart: 102.7
+  lapsBeforeFinish: 1
+  offsetFromRacingLine: -9.21
+  trackWidth: 27
+  lineDepth: 1.1
+  heightAboveTrack: 0.02
+  surfaceMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  drivers:
+  - {fileID: 959273692}
+  - {fileID: 1729164396}
+--- !u!23 &2088646963
+MeshRenderer:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088646960}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 1
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 2
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: 0b14857899b4a2a45b626a5b82f6b714, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 3
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_MaskInteraction: 0
+  m_AdditionalVertexStreams: {fileID: 0}
+--- !u!33 &2088646964
+MeshFilter:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2088646960}
+  m_Mesh: {fileID: 0}
 --- !u!1001 &2093166266
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -196014,7 +196342,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 29534d89a52192c4aa7c674daa188102, type: 2}
+  - {fileID: 2100000, guid: 397d695c8282eb34eb90525c3501ce8e, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0

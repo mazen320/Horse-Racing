@@ -24,6 +24,11 @@ namespace HorseRacing.UI
         [Header("Race")]
         [SerializeField] RaceSplineTapDriver raceDriver;
         [SerializeField] RaceSplineTapDriver raceDriverP2;
+        [SerializeField] RaceViewLayout viewLayout;
+        [SerializeField] StartGateDoors startGate;
+        [Tooltip("2 = split screen. 1 = one full-screen view. The tablet overrides this per match.")]
+        [Range(1, 2)]
+        [SerializeField] int playerCount = 2;
 
         [Header("Menu pages")]
         [SerializeField] CanvasGroup menuBackgroundCG;
@@ -85,10 +90,13 @@ namespace HorseRacing.UI
         float _player2NameplateRestY;
         bool _nameplateRestCached;
 
+        bool Solo => playerCount <= 1;
+
         void Awake()
         {
             ResolveRaceDrivers();
             CacheNameplateRestPositions();
+            ApplyViewLayout();
             ApplyCountdownShadow(countdownText);
 
             WireButton(startContinueButton, OnStartContinue);
@@ -175,6 +183,9 @@ namespace HorseRacing.UI
             ApplyState(FlowState.Countdown);
             yield return RunCountdown();
 
+            if (startGate)
+                startGate.Open();
+
             SetDriversInputEnabled(true);
             _raceStartTime = Time.time;
 
@@ -183,9 +194,32 @@ namespace HorseRacing.UI
         }
 
         public void ApplyTabletRegistration(string player1, string player2, bool showInstructions)
+            => ApplyTabletRegistration(player1, player2, showInstructions, playerCount);
+
+        public void ApplyTabletRegistration(string player1, string player2, bool showInstructions, int players)
         {
+            SetPlayerCount(players);
             SetPlayerNames(player1, player2);
             ApplyState(showInstructions ? FlowState.InstructionsPage : FlowState.StartPage);
+        }
+
+        /// <summary>1 = one full-screen view, 2 = split screen.</summary>
+        public void SetPlayerCount(int players)
+        {
+            playerCount = Mathf.Clamp(players, 1, 2);
+            ApplyViewLayout();
+            RefreshPlayerNames();
+        }
+
+        void ApplyViewLayout()
+        {
+            if (viewLayout)
+                viewLayout.Apply(playerCount);
+
+            // Solo keeps player one's plate over the left half. Centring it would put it
+            // straight under the timer pill, which already owns the top middle.
+            if (player2Nameplate)
+                player2Nameplate.gameObject.SetActive(!Solo);
         }
 
         public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
@@ -278,7 +312,7 @@ namespace HorseRacing.UI
 
             _player1Time = Time.time - _raceStartTime;
             raceDriver?.SetRaceInputEnabled(false);
-            if (_player2Time >= 0f || !raceDriverP2)
+            if (Solo || _player2Time >= 0f || !raceDriverP2)
                 ApplyState(FlowState.StartPage);
         }
 
@@ -295,13 +329,16 @@ namespace HorseRacing.UI
 
         void RestartDrivers(bool inputEnabled)
         {
+            if (startGate)
+                startGate.Close();
+
             if (raceDriver)
             {
                 raceDriver.RestartRace();
                 raceDriver.SetRaceInputEnabled(inputEnabled);
             }
 
-            if (raceDriverP2)
+            if (raceDriverP2 && !Solo)
             {
                 raceDriverP2.RestartRace();
                 raceDriverP2.SetRaceInputEnabled(inputEnabled);
@@ -311,7 +348,8 @@ namespace HorseRacing.UI
         void SetDriversInputEnabled(bool enabled)
         {
             raceDriver?.SetRaceInputEnabled(enabled);
-            raceDriverP2?.SetRaceInputEnabled(enabled);
+            if (!Solo)
+                raceDriverP2?.SetRaceInputEnabled(enabled);
         }
 
         void RefreshInstructions()

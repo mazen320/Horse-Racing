@@ -55,11 +55,12 @@ namespace HorseRacing.Registration
                 return;
 
             var p1 = FindName(data, 1) ?? data.entries[0].name;
-            var p2 = data.entries.Count > 1
-                ? FindName(data, 2) ?? data.entries[1].name
-                : "PLAYER 2";
+            var solo = data.entries.Count < 2;
+            var p2 = solo
+                ? "PLAYER 2"
+                : FindName(data, 2) ?? data.entries[1].name;
 
-            uiManager.ApplyTabletRegistration(p1, p2, skipToInstructionsOnRegister);
+            uiManager.ApplyTabletRegistration(p1, p2, skipToInstructionsOnRegister, solo ? 1 : 2);
 
             if (!appendRegistrationCsv)
                 return;

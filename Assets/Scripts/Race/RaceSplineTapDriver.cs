@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using MalbersAnimations.Controller;
 using MalbersAnimations.HAP;
 using Unity.Mathematics;
@@ -111,8 +112,16 @@ namespace HorseRacing.Race
         float _originalAnimatorSpeed;
         AnimatorUpdateMode _originalAnimatorUpdateMode;
         AnimatorUpdateMode _originalRiderAnimatorUpdateMode;
+        AnimatorCullingMode _originalAnimatorCullingMode;
+        AnimatorCullingMode _originalRiderAnimatorCullingMode;
         MalbersAnimations.HAP.Mount[] _mounts;
         MalbersAnimations.Scriptables.BoolReference[] _originalMountInputSettings;
+
+        readonly List<MalbersAnimations.Stats> _staminaOwners = new List<MalbersAnimations.Stats>();
+        readonly List<MalbersAnimations.Stat> _staminaStats = new List<MalbersAnimations.Stat>();
+        readonly List<GameObject> _staminaWidgets = new List<GameObject>();
+        readonly List<Transform> _staminaScan = new List<Transform>();
+        int _staminaHierarchyCount = -1;
 
         public float Effort => _effortModel.Effort;
         public float TravelSpeed => _travelSpeed.Speed;
@@ -120,6 +129,8 @@ namespace HorseRacing.Race
         public int AnimationGait => _animationGait;
         public float DistanceTravelled => _raceProgress.DistanceTravelled;
         public float ActiveRaceDistance => raceFullSpline ? _splineLength : raceDistanceMeters;
+        public float SplineLength => _splineLength;
+        public float StartNormalizedT => _startNormalizedT;
         public float RaceProgress => _raceProgress.Progress(ActiveRaceDistance);
         public bool IsFinished => _raceProgress.IsFinished;
         public bool RaceInputEnabled => _raceInputEnabled;
@@ -221,7 +232,7 @@ namespace HorseRacing.Race
             CaptureOwnership();
             ConfigureMovementOwnership();
             DisableExternalControllers(transform);
-            DisableStamina(transform);
+            SuppressStamina();
             MuteHorseAudio(transform);
 
             _effortModel.Reset();
@@ -248,8 +259,12 @@ namespace HorseRacing.Race
             _originalAnimatorApplyRootMotion = animator.applyRootMotion;
             _originalAnimatorSpeed = animator.speed;
             _originalAnimatorUpdateMode = animator.updateMode;
+            _originalAnimatorCullingMode = animator.cullingMode;
             if (riderAnimator)
+            {
                 _originalRiderAnimatorUpdateMode = riderAnimator.updateMode;
+                _originalRiderAnimatorCullingMode = riderAnimator.cullingMode;
+            }
 
             if (_rigidbody)
             {
@@ -283,8 +298,15 @@ namespace HorseRacing.Race
             animator.applyRootMotion = true;
             animator.speed = 1f;
             animator.updateMode = AnimatorUpdateMode.Normal;
+
+            // Culled animators stop writing bone transforms, which reads as a hitch
+            // when a horse crosses the edge of either split-screen viewport.
+            animator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
             if (riderAnimator)
+            {
                 riderAnimator.updateMode = AnimatorUpdateMode.Normal;
+                riderAnimator.cullingMode = AnimatorCullingMode.AlwaysAnimate;
+            }
 
             if (_rigidbody)
             {
@@ -337,24 +359,64 @@ namespace HorseRacing.Race
                 lockOn.enabled = false;
         }
 
-        static void DisableStamina(Transform root)
+        /// <summary>
+        /// Holds Malbers stamina off so it never throttles the gait mid-race. The
+        /// targets are cached because this runs every frame: riders are parented in
+        /// after Awake, so the rig is rescanned only when it gains or loses objects.
+        /// </summary>
+        void SuppressStamina()
         {
-            foreach (var stats in root.GetComponentsInChildren<MalbersAnimations.Stats>(true))
-            {
-                if (!stats.enabled)
-                    stats.enabled = true;
+            var hierarchy = transform.hierarchyCount;
+            if (hierarchy != _staminaHierarchyCount)
+                CaptureStaminaTargets(hierarchy);
 
-                var stamina = stats.Stat_Get("Stamina");
+            for (var i = 0; i < _staminaOwners.Count; i++)
+            {
+                var owner = _staminaOwners[i];
+                if (owner && !owner.enabled) owner.enabled = true;
+            }
+
+            for (var i = 0; i < _staminaStats.Count; i++)
+            {
+                var stamina = _staminaStats[i];
                 if (stamina == null) continue;
                 stamina.SetActive(false);
                 stamina.SetDegeneration(false);
                 stamina.SetRegeneration(false);
             }
 
-            foreach (var child in root.GetComponentsInChildren<Transform>(true))
+            for (var i = 0; i < _staminaWidgets.Count; i++)
             {
-                if (child.name.IndexOf("Stamina", StringComparison.OrdinalIgnoreCase) >= 0)
-                    child.gameObject.SetActive(false);
+                var widget = _staminaWidgets[i];
+                if (widget && widget.activeSelf) widget.SetActive(false);
+            }
+        }
+
+        void CaptureStaminaTargets(int hierarchy)
+        {
+            _staminaHierarchyCount = hierarchy;
+            _staminaOwners.Clear();
+            _staminaStats.Clear();
+            _staminaWidgets.Clear();
+
+            transform.GetComponentsInChildren(true, _staminaOwners);
+            for (var i = 0; i < _staminaOwners.Count; i++)
+            {
+                var owner = _staminaOwners[i];
+                if (!owner) continue;
+                if (!owner.enabled) owner.enabled = true;
+
+                var stamina = owner.Stat_Get("Stamina");
+                if (stamina != null) _staminaStats.Add(stamina);
+            }
+
+            _staminaScan.Clear();
+            transform.GetComponentsInChildren(true, _staminaScan);
+            for (var i = 0; i < _staminaScan.Count; i++)
+            {
+                var child = _staminaScan[i];
+                if (child && child.name.IndexOf("Stamina", StringComparison.OrdinalIgnoreCase) >= 0)
+                    _staminaWidgets.Add(child.gameObject);
             }
         }
 
@@ -380,8 +442,6 @@ namespace HorseRacing.Race
             if (IsFinished) return;
 
             if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
-
-            DisableStamina(transform);
 
             _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
                 accelSmoothTime, coastSmoothTime);
@@ -436,7 +496,17 @@ namespace HorseRacing.Race
 
         void LateUpdate()
         {
-            if (!_ready || !_raceInputEnabled) return;
+            if (!_ready) return;
+
+            // Hold the grid pose while the countdown runs. Without this the animal
+            // controller's own gravity settles the horse a little lower each frame and
+            // the first race frame snaps it back up to the spline.
+            if (!_raceInputEnabled)
+            {
+                ApplyPose(true);
+                return;
+            }
+
             if (IsFinished)
             {
                 ApplyPose(false);
@@ -516,7 +586,7 @@ namespace HorseRacing.Race
             animal.LockUpDownMovement = true;
             animal.UseSprint = false;
             animal.CanSprint = false;
-            DisableStamina(transform);
+            SuppressStamina();
 
             if (gait <= 0)
             {
@@ -643,10 +713,14 @@ namespace HorseRacing.Race
                 animator.applyRootMotion = _originalAnimatorApplyRootMotion;
                 animator.speed = _originalAnimatorSpeed;
                 animator.updateMode = _originalAnimatorUpdateMode;
+                animator.cullingMode = _originalAnimatorCullingMode;
             }
 
             if (riderAnimator)
+            {
                 riderAnimator.updateMode = _originalRiderAnimatorUpdateMode;
+                riderAnimator.cullingMode = _originalRiderAnimatorCullingMode;
+            }
 
             if (_rigidbody)
             {
