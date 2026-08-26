@@ -301,7 +301,17 @@ namespace HorseRacing.Registration
                 return;
             }
 
-            if (!_registered && data.entries != null && data.entries.Count > 0)
+            if (data.endGame)
+            {
+                _registered = false;
+                _lastRegistration = new RegisterEntryData();
+                EndGameCommandReceived?.Invoke();
+                if (logTraffic)
+                    Debug.Log("[RegistrationTcpServer] End game command received");
+                return;
+            }
+
+            if (data.entries != null && data.entries.Count > 0)
             {
                 _registered = true;
                 _lastRegistration = data;
@@ -312,22 +322,21 @@ namespace HorseRacing.Registration
 
                 if (logTraffic)
                     Debug.Log($"[RegistrationTcpServer] Registered {data.entries.Count} player(s)");
+                return;
             }
 
             if (data.start)
             {
+                if (!_registered || _lastRegistration.entries == null || _lastRegistration.entries.Count == 0)
+                {
+                    if (logTraffic)
+                        Debug.LogWarning("[RegistrationTcpServer] Start ignored — no active registration");
+                    return;
+                }
+
                 StartCommandReceived?.Invoke();
                 if (logTraffic)
                     Debug.Log("[RegistrationTcpServer] Start command received");
-            }
-
-            if (data.endGame)
-            {
-                _registered = false;
-                _lastRegistration = new RegisterEntryData();
-                EndGameCommandReceived?.Invoke();
-                if (logTraffic)
-                    Debug.Log("[RegistrationTcpServer] End game command received");
             }
         }
 

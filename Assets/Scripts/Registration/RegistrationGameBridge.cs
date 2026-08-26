@@ -85,8 +85,8 @@ namespace HorseRacing.Registration
 
         void OnRestart()
         {
+            // No restart echo back to the sender — the tablet already reset itself locally.
             uiManager?.ApplyTabletRestart();
-            server?.SendRestart();
         }
 
         void OnEndGame()
