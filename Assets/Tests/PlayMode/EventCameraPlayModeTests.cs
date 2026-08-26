@@ -30,8 +30,8 @@ namespace HorseRacing.Race.Tests
                 Assert.That(raceTarget.HeadingSource, Is.Not.Null);
                 Assert.That(raceTarget.SpeedSource, Is.Not.Null);
                 Assert.That(raceTarget.MaxYawLagDegrees, Is.EqualTo(8f).Within(0.001f));
-                Assert.That(raceTarget.BaseFieldOfView, Is.EqualTo(42.5f).Within(0.001f));
-                Assert.That(raceTarget.SprintFieldOfView, Is.EqualTo(44.5f).Within(0.001f));
+                Assert.That(raceTarget.BaseFieldOfView, Is.EqualTo(55f).Within(0.001f));
+                Assert.That(raceTarget.SprintFieldOfView, Is.EqualTo(59f).Within(0.001f));
             }
 
             var cameras = Object.FindObjectsByType<CinemachineCamera>(
@@ -50,8 +50,8 @@ namespace HorseRacing.Race.Tests
             Assert.That(mount.Damping.z, Is.EqualTo(0.18f).Within(0.001f));
             Assert.That(mount.ShoulderOffset.x, Is.Zero.Within(0.001f));
             Assert.That(mount.ShoulderOffset.y, Is.Zero.Within(0.001f));
-            Assert.That(mount.VerticalArmLength, Is.EqualTo(0.25f).Within(0.001f));
-            Assert.That(mount.CameraDistance, Is.EqualTo(6.5f).Within(0.001f));
+            Assert.That(mount.VerticalArmLength, Is.EqualTo(1.15f).Within(0.001f));
+            Assert.That(mount.CameraDistance, Is.EqualTo(7.4f).Within(0.001f));
             Assert.That(mount.CameraSide, Is.EqualTo(0.5f).Within(0.001f));
 
             var brainP1 = GameObject.Find("CM Brain").GetComponent<Camera>();

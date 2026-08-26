@@ -43,23 +43,30 @@ namespace HorseRacing.UI
         [SerializeField] TMP_Text countdownText;
         [SerializeField] TMP_Text raceTimerText;
 
-        [Header("Player 1 header")]
-        [SerializeField] Image player1HeaderBg;
+        [Header("Player nameplates (Instructions TitleBlock style)")]
         [SerializeField] TMP_Text player1NameText;
-        [SerializeField] TMP_Text player1StatusText;
-
-        [Header("Player 2 header")]
-        [SerializeField] Image player2HeaderBg;
         [SerializeField] TMP_Text player2NameText;
-        [SerializeField] TMP_Text player2StatusText;
+        [SerializeField] RectTransform player1Nameplate;
+        [SerializeField] RectTransform player2Nameplate;
+        [SerializeField] RectTransform player1Underline;
+        [SerializeField] RectTransform player2Underline;
+        [SerializeField] RectTransform player1Plate;
+        [SerializeField] RectTransform player2Plate;
+        [SerializeField] float underlinePadding = 26f;
+        [SerializeField] float platePadding = 104f;
 
         [Header("Player names")]
         [SerializeField] string player1Name = "PLAYER 1";
         [SerializeField] string player2Name = "PLAYER 2";
 
         [Header("Transitions")]
-        [SerializeField] float fadeDuration = 0.35f;
-        [SerializeField] Ease fadeEase = Ease.OutQuad;
+        [SerializeField] float fadeDuration = 0.5f;
+        [SerializeField] float pageStagger = 0.08f;
+        [SerializeField] Ease fadeOutEase = Ease.InCubic;
+        [SerializeField] Ease fadeInEase = Ease.OutCubic;
+        [SerializeField] float nameplateIntroOffsetY = 28f;
+        [SerializeField] float nameplateIntroDuration = 0.55f;
+        [SerializeField] Ease nameplateIntroEase = Ease.OutCubic;
 
         [Header("Countdown timing")]
         [SerializeField] float countdownSeconds = 3f;
@@ -68,21 +75,21 @@ namespace HorseRacing.UI
         [SerializeField] float countdownPopDuration = 0.22f;
         [SerializeField] Ease countdownPopEase = Ease.OutBack;
 
-        [Header("Header colours")]
-        [SerializeField] Color playerActiveColor = new(1f, 0.78f, 0.28f, 1f);
-        [SerializeField] Color playerInactiveColor = new(1f, 1f, 1f, 0.42f);
-        [SerializeField] Color playerActiveBgColor = new(1f, 0.78f, 0.28f, 0.14f);
-        [SerializeField] Color playerInactiveBgColor = new(1f, 1f, 1f, 0.04f);
-
         FlowState _state = FlowState.StartPage;
         float _raceStartTime;
         float _player1Time = -1f;
         float _player2Time = -1f;
         Coroutine _flowCoroutine;
+        Sequence _pageSequence;
+        float _player1NameplateRestY;
+        float _player2NameplateRestY;
+        bool _nameplateRestCached;
 
         void Awake()
         {
             ResolveRaceDrivers();
+            CacheNameplateRestPositions();
+            ApplyCountdownShadow(countdownText);
 
             WireButton(startContinueButton, OnStartContinue);
             WireButton(instructionsStartButton, OnInstructionsStart);
@@ -99,7 +106,7 @@ namespace HorseRacing.UI
                 raceDriverP2.SetRaceInputEnabled(false);
             }
 
-            RefreshPlayerHeader();
+            RefreshPlayerNames();
             ApplyState(FlowState.StartPage, true);
         }
 
@@ -107,8 +114,7 @@ namespace HorseRacing.UI
         {
             if (!raceDriver || !raceDriverP2)
             {
-                var drivers = FindObjectsByType<RaceSplineTapDriver>(
-                    FindObjectsInactive.Include, FindObjectsSortMode.None);
+                var drivers = FindObjectsByType<RaceSplineTapDriver>(FindObjectsInactive.Include);
                 foreach (var driver in drivers)
                 {
                     if (!driver) continue;
@@ -158,7 +164,7 @@ namespace HorseRacing.UI
             StopFlow();
             _player1Time = -1f;
             _player2Time = -1f;
-            RefreshPlayerHeader();
+            RefreshPlayerNames();
             _flowCoroutine = StartCoroutine(RunSplitScreenRace());
         }
 
@@ -201,17 +207,21 @@ namespace HorseRacing.UI
                 player1Name = player1.Trim();
             if (!string.IsNullOrWhiteSpace(player2))
                 player2Name = player2.Trim();
-            RefreshPlayerHeader();
+            RefreshPlayerNames();
         }
 
         void KillTweens()
         {
+            _pageSequence?.Kill();
+            _pageSequence = null;
             menuBackgroundCG?.DOKill();
             startPageCG?.DOKill();
             instructionsPageCG?.DOKill();
             gameHudCG?.DOKill();
             countdownCG?.DOKill();
             countdownText?.transform.DOKill();
+            if (player1Nameplate) player1Nameplate.DOKill();
+            if (player2Nameplate) player2Nameplate.DOKill();
         }
 
         static void WireButton(Button button, UnityEngine.Events.UnityAction action)
@@ -246,7 +256,15 @@ namespace HorseRacing.UI
             countdownText.text = text;
             var t = countdownText.transform;
             t.DOKill();
-            t.localScale = Vector3.one;
+            t.localScale = Vector3.one * 0.82f;
+            var cg = countdownCG;
+            if (cg)
+            {
+                cg.DOKill(false);
+                cg.alpha = 0f;
+                cg.DOFade(1f, countdownPopDuration * 0.55f).SetEase(Ease.OutQuad);
+            }
+
             t.DOScale(countdownPopScale, countdownPopDuration)
                 .SetEase(countdownPopEase)
                 .SetLoops(2, LoopType.Yoyo)
@@ -260,7 +278,6 @@ namespace HorseRacing.UI
 
             _player1Time = Time.time - _raceStartTime;
             raceDriver?.SetRaceInputEnabled(false);
-            RefreshPlayerHeader();
             if (_player2Time >= 0f || !raceDriverP2)
                 ApplyState(FlowState.StartPage);
         }
@@ -272,7 +289,6 @@ namespace HorseRacing.UI
 
             _player2Time = Time.time - _raceStartTime;
             raceDriverP2?.SetRaceInputEnabled(false);
-            RefreshPlayerHeader();
             if (_player1Time >= 0f || !raceDriver)
                 ApplyState(FlowState.StartPage);
         }
@@ -304,46 +320,30 @@ namespace HorseRacing.UI
                 instructionsBodyText.text = instructionsCopy;
         }
 
-        void RefreshPlayerHeader()
+        void RefreshPlayerNames()
         {
-            if (player1NameText) player1NameText.text = player1Name;
-            if (player2NameText) player2NameText.text = player2Name;
+            if (player1NameText)
+                player1NameText.text = string.IsNullOrWhiteSpace(player1Name) ? "PLAYER 1" : player1Name.ToUpperInvariant();
+            if (player2NameText)
+                player2NameText.text = string.IsNullOrWhiteSpace(player2Name) ? "PLAYER 2" : player2Name.ToUpperInvariant();
 
-            SetPlayerSlot(0, player1HeaderBg, player1NameText, player1StatusText, _player1Time);
-            SetPlayerSlot(1, player2HeaderBg, player2NameText, player2StatusText, _player2Time);
+            FitNameplate(player1NameText, player1Underline, player1Plate);
+            FitNameplate(player2NameText, player2Underline, player2Plate);
         }
 
-        void SetPlayerSlot(int index, Image bg, TMP_Text name, TMP_Text status, float finishTime)
+        /// <summary>Keeps the coral bar and cream plate hugging the name, however long it is.</summary>
+        void FitNameplate(TMP_Text text, RectTransform underline, RectTransform plate)
         {
-            var inRace = _state == FlowState.Countdown || _state == FlowState.Racing;
+            if (!text) return;
 
-            if (bg)
-                bg.color = inRace ? playerActiveBgColor : playerInactiveBgColor;
+            text.ForceMeshUpdate();
+            var width = text.textBounds.size.x;
+            if (width <= 0f || float.IsNaN(width)) return;
 
-            if (name)
-            {
-                name.color = inRace ? playerActiveColor : playerInactiveColor;
-                name.fontStyle = inRace ? FontStyles.Bold : FontStyles.Normal;
-            }
-
-            if (!status) return;
-
-            if (finishTime >= 0f)
-            {
-                status.text = FormatTime(finishTime);
-                status.color = playerActiveColor;
-                return;
-            }
-
-            if (inRace)
-            {
-                status.text = _state == FlowState.Countdown ? "GET READY" : "RACING";
-                status.color = playerActiveColor;
-                return;
-            }
-
-            status.text = "READY";
-            status.color = playerInactiveColor;
+            if (underline)
+                underline.sizeDelta = new Vector2(width + underlinePadding, underline.sizeDelta.y);
+            if (plate)
+                plate.sizeDelta = new Vector2(width + platePadding, plate.sizeDelta.y);
         }
 
         static string FormatTime(float seconds)
@@ -356,43 +356,181 @@ namespace HorseRacing.UI
 
         void ApplyState(FlowState newState, bool instant = false)
         {
+            var previous = _state;
             _state = newState;
 
             var inGame = newState == FlowState.Countdown || newState == FlowState.Racing;
 
-            // Start page ships as a full-screen art export; beige menu BG is instructions-only.
-            SetCg(menuBackgroundCG, newState == FlowState.InstructionsPage, instant);
-            SetCg(startPageCG, newState == FlowState.StartPage, instant);
-            SetCg(instructionsPageCG, newState == FlowState.InstructionsPage, instant);
-            SetCg(gameHudCG, inGame, instant);
-            SetCg(countdownCG, newState == FlowState.Countdown, instant);
-
             if (newState == FlowState.InstructionsPage)
                 RefreshInstructions();
 
-            RefreshPlayerHeader();
+            RefreshPlayerNames();
+
+            // Start page ships as a full-screen art export; beige menu BG is instructions-only.
+            TransitionPages(
+                menuBackgroundCG, newState == FlowState.InstructionsPage,
+                startPageCG, newState == FlowState.StartPage,
+                instructionsPageCG, newState == FlowState.InstructionsPage,
+                gameHudCG, inGame,
+                countdownCG, newState == FlowState.Countdown,
+                instant);
+
+            if (inGame && previous != FlowState.Countdown && previous != FlowState.Racing)
+                PlayNameplateIntro(instant);
         }
 
-        void SetCg(CanvasGroup cg, bool visible, bool instant = false)
+        void TransitionPages(
+            CanvasGroup menuBg, bool menuBgOn,
+            CanvasGroup start, bool startOn,
+            CanvasGroup instructions, bool instructionsOn,
+            CanvasGroup hud, bool hudOn,
+            CanvasGroup countdown, bool countdownOn,
+            bool instant)
         {
-            if (!cg) return;
-
-            cg.DOKill();
-            var targetAlpha = visible ? 1f : 0f;
+            KillPageSequence();
 
             if (instant || fadeDuration <= 0f)
             {
-                cg.alpha = targetAlpha;
-                cg.interactable = visible;
-                cg.blocksRaycasts = visible;
+                ApplyCgInstant(menuBg, menuBgOn);
+                ApplyCgInstant(start, startOn);
+                ApplyCgInstant(instructions, instructionsOn);
+                ApplyCgInstant(hud, hudOn);
+                ApplyCgInstant(countdown, countdownOn);
                 return;
             }
 
+            _pageSequence = DOTween.Sequence().SetUpdate(true);
+
+            void FadeOut(CanvasGroup cg, bool shouldShow)
+            {
+                if (!cg || shouldShow) return;
+                if (cg.alpha <= 0.001f)
+                {
+                    ApplyCgInstant(cg, false);
+                    return;
+                }
+
+                cg.interactable = false;
+                cg.blocksRaycasts = false;
+                _pageSequence.Join(
+                    cg.DOFade(0f, fadeDuration * 0.85f)
+                        .SetEase(fadeOutEase));
+            }
+
+            void FadeIn(CanvasGroup cg, bool shouldShow, float delay)
+            {
+                if (!cg || !shouldShow) return;
+                cg.interactable = false;
+                cg.blocksRaycasts = false;
+                if (cg.alpha >= 0.999f)
+                {
+                    cg.interactable = true;
+                    cg.blocksRaycasts = true;
+                    return;
+                }
+
+                _pageSequence.Insert(
+                    delay,
+                    cg.DOFade(1f, fadeDuration)
+                        .SetEase(fadeInEase)
+                        .OnStart(() =>
+                        {
+                            cg.gameObject.SetActive(true);
+                        })
+                        .OnComplete(() =>
+                        {
+                            cg.interactable = true;
+                            cg.blocksRaycasts = true;
+                        }));
+            }
+
+            FadeOut(start, startOn);
+            FadeOut(instructions, instructionsOn);
+            FadeOut(menuBg, menuBgOn);
+            FadeOut(countdown, countdownOn);
+            FadeOut(hud, hudOn);
+
+            var inDelay = fadeDuration * 0.35f + pageStagger;
+            FadeIn(menuBg, menuBgOn, inDelay);
+            FadeIn(start, startOn, inDelay);
+            FadeIn(instructions, instructionsOn, inDelay + pageStagger);
+            FadeIn(hud, hudOn, inDelay);
+            FadeIn(countdown, countdownOn, inDelay + pageStagger * 0.5f);
+        }
+
+        void CacheNameplateRestPositions()
+        {
+            if (player1Nameplate)
+                _player1NameplateRestY = player1Nameplate.anchoredPosition.y;
+            if (player2Nameplate)
+                _player2NameplateRestY = player2Nameplate.anchoredPosition.y;
+            _nameplateRestCached = true;
+        }
+
+        static void ApplyCountdownShadow(TMP_Text text)
+        {
+            if (!text) return;
+
+            // Offset shade under the count, matching the countdown key art.
+            var mat = text.fontMaterial;
+            mat.EnableKeyword("UNDERLAY_ON");
+            mat.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0.08f);
+            mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, 0.35f);
+            mat.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, -0.35f);
+            mat.SetColor(ShaderUtilities.ID_UnderlayColor, new Color(0.16f, 0.24f, 0.28f, 0.45f));
+            text.fontMaterial = mat;
+        }
+
+        void PlayNameplateIntro(bool instant)
+        {
+            if (!_nameplateRestCached)
+                CacheNameplateRestPositions();
+
+            AnimateNameplate(player1Nameplate, _player1NameplateRestY, instant, 0f);
+            AnimateNameplate(player2Nameplate, _player2NameplateRestY, instant, pageStagger);
+        }
+
+        void AnimateNameplate(RectTransform plate, float restY, bool instant, float delay)
+        {
+            if (!plate) return;
+
+            plate.DOKill();
+            var x = plate.anchoredPosition.x;
+            if (instant || nameplateIntroDuration <= 0f)
+            {
+                plate.anchoredPosition = new Vector2(x, restY);
+                plate.localScale = Vector3.one;
+                return;
+            }
+
+            plate.anchoredPosition = new Vector2(x, restY + nameplateIntroOffsetY);
+            plate.localScale = Vector3.one * 0.96f;
+            DOTween.Sequence()
+                .SetDelay(delay)
+                .SetUpdate(true)
+                .Append(plate.DOAnchorPosY(restY, nameplateIntroDuration).SetEase(nameplateIntroEase))
+                .Join(plate.DOScale(1f, nameplateIntroDuration).SetEase(nameplateIntroEase))
+                .SetTarget(plate);
+        }
+
+        static void ApplyCgInstant(CanvasGroup cg, bool visible)
+        {
+            if (!cg) return;
+            cg.DOKill();
+            cg.alpha = visible ? 1f : 0f;
             cg.interactable = visible;
             cg.blocksRaycasts = visible;
-            cg.DOFade(targetAlpha, fadeDuration)
-                .SetEase(fadeEase)
-                .SetTarget(cg);
+        }
+
+        void KillPageSequence()
+        {
+            _pageSequence?.Kill();
+            _pageSequence = null;
+            menuBackgroundCG?.DOKill();
+            startPageCG?.DOKill();
+            instructionsPageCG?.DOKill();
+            gameHudCG?.DOKill();
+            countdownCG?.DOKill();
         }
 
         void StopFlow()

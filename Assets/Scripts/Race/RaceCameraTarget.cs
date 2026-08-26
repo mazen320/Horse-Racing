@@ -19,9 +19,13 @@ namespace HorseRacing.Race
         [SerializeField, Range(0f, 20f)] float maxYawLagDegrees = 8f;
         [SerializeField, Range(10f, 180f)] float snapAngleDegrees = 45f;
 
+        [Header("Chase framing")]
+        [Tooltip("Tilts the rig down so the track ahead reads instead of the horse's back.")]
+        [SerializeField, Range(0f, 25f)] float chasePitchDegrees = 9f;
+
         [Header("Premium chase lens")]
-        [SerializeField, Range(35f, 60f)] float baseFieldOfView = 42.5f;
-        [SerializeField, Range(35f, 60f)] float sprintFieldOfView = 44.5f;
+        [SerializeField, Range(35f, 70f)] float baseFieldOfView = 55f;
+        [SerializeField, Range(35f, 70f)] float sprintFieldOfView = 59f;
         [SerializeField, Min(0.05f)] float fieldOfViewSmoothTime = 0.45f;
 
         Transform[] _originalTargets;
@@ -50,9 +54,9 @@ namespace HorseRacing.Race
             maxYawLagDegrees = Mathf.Clamp(maxYawLagDegrees, 0f, 20f);
             snapAngleDegrees = Mathf.Clamp(snapAngleDegrees,
                 Mathf.Max(10f, maxYawLagDegrees), 180f);
-            baseFieldOfView = Mathf.Clamp(baseFieldOfView, 35f, 60f);
+            baseFieldOfView = Mathf.Clamp(baseFieldOfView, 35f, 70f);
             sprintFieldOfView = Mathf.Clamp(sprintFieldOfView,
-                baseFieldOfView, 60f);
+                baseFieldOfView, 70f);
             fieldOfViewSmoothTime = Mathf.Max(0.05f, fieldOfViewSmoothTime);
         }
 
@@ -109,7 +113,7 @@ namespace HorseRacing.Race
                 maxYawLagDegrees, snapAngleDegrees,
                 forceSnap || !_initialized);
             transform.SetPositionAndRotation(positionAnchor.position,
-                Quaternion.Euler(0f, _yaw, 0f));
+                Quaternion.Euler(chasePitchDegrees, _yaw, 0f));
             _initialized = true;
         }
 
