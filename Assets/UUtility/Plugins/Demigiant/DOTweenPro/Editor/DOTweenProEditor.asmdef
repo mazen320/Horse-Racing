@@ -1,0 +1,27 @@
+{
+    "name": "DOTweenPro.EditorScripts",
+    "rootNamespace": "",
+    "references": [
+        "GUID:905c050716c289544a048614bd788152",
+        "GUID:6055be8ebefd69e48b49212b09b47b2f",
+        "GUID:9ffcb0a678ebd1d448f540edda0eda5e"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "DOTween.dll",
+        "DOTweenPro.dll",
+        "DOTweenEditor.dll",
+        "DOTweenProEditor.dll",
+        "DemiEditor.dll",
+        "DemiLib.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

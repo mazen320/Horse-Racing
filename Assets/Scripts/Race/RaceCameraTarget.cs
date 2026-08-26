@@ -104,6 +104,50 @@ namespace HorseRacing.Race
 
         public void SnapBehindSubject() => ApplyPose(0f, true);
 
+        /// <summary>
+        /// Re-seats every chase rig behind its horse after a grid reset. The rig is
+        /// snapped first, then Cinemachine is told the tracked object teleported and its
+        /// damping history is dropped. Without this the follow rig interpolates across
+        /// the whole course and the return to the menu reads as the camera flying.
+        /// </summary>
+        public static void SnapAllAfterTeleport()
+        {
+            var targets = FindObjectsByType<RaceCameraTarget>(
+                FindObjectsInactive.Include, FindObjectsSortMode.None);
+
+            for (var i = 0; i < targets.Length; i++)
+            {
+                if (targets[i])
+                    targets[i].SnapAfterTeleport();
+            }
+
+            foreach (var brain in FindObjectsByType<CinemachineBrain>(
+                         FindObjectsInactive.Include, FindObjectsSortMode.None))
+            {
+                if (brain) brain.ResetState();
+            }
+        }
+
+        void SnapAfterTeleport()
+        {
+            var before = transform.position;
+            SnapBehindSubject();
+            var delta = transform.position - before;
+
+            CinemachineCore.OnTargetObjectWarped(transform, delta);
+
+            if (controlledCameras == null) return;
+            for (var i = 0; i < controlledCameras.Length; i++)
+            {
+                var camera = controlledCameras[i];
+                if (!camera) continue;
+
+                camera.OnTargetObjectWarped(transform, delta);
+                camera.ForceCameraPosition(transform.position, transform.rotation);
+                camera.PreviousStateIsValid = false;
+            }
+        }
+
         void ApplyPose(float deltaTime, bool forceSnap)
         {
             if (!positionAnchor || !headingSource) return;

@@ -50,6 +50,20 @@ namespace HorseRacing.Race
         public float accelSmoothTime = 0.55f;
         public float coastSmoothTime = 1.25f;
 
+        [Header("Overdrive — reward pace above the top gait")]
+        [Tooltip("Without this a runner tapping well past the top-gait requirement travels no faster than one who only just reaches it.")]
+        public bool enableOverdrive = true;
+        [Tooltip("Tap rate that earns the full overdrive bonus. Must sit above Taps Per Second For Max.")]
+        [Min(0.2f)] public float tapsPerSecondForFullOverdrive = 6f;
+        [Tooltip("Track speed multiplier at full overdrive. 1 disables the bonus.")]
+        [Range(1f, 2.5f)] public float overdriveSpeedMultiplier = 1.6f;
+        [Tooltip("Animation playback multiplier at full overdrive, so the legs keep up with the extra ground speed instead of skating.")]
+        [Range(1f, 2f)] public float overdriveAnimationSpeedMultiplier = 1.35f;
+
+        [Header("Finish run-out")]
+        [Tooltip("Seconds the horse keeps travelling past the winning post while easing down through the gaits. 0 stops dead on the line.")]
+        [Min(0f)] public float finishRunOutSeconds = 3.4f;
+
         [Header("Gait thresholds (effort 0..1) — Malbers Ground: 1 Walk … 5 Sprint")]
         public float walkAt = 0.08f;
         public float trotAt = 0.28f;
@@ -97,6 +111,10 @@ namespace HorseRacing.Race
         bool _ready;
         bool _raceInputEnabled = true;
         bool _ownershipCaptured;
+        bool _runningOut;
+        float _runOutTimer;
+        float _runOutStartSpeed;
+        float _appliedAnimatorSpeed = 1f;
 
         bool _originalAnimalDisablePosition;
         bool _originalAnimalDisableRotation;
@@ -134,20 +152,68 @@ namespace HorseRacing.Race
         public float RaceProgress => _raceProgress.Progress(ActiveRaceDistance);
         public bool IsFinished => _raceProgress.IsFinished;
         public bool RaceInputEnabled => _raceInputEnabled;
+        public bool IsRunningOut => _runningOut;
+
+        public string GetPrimaryTapKeyLabel()
+        {
+            if (tapKeys == null || tapKeys.Length == 0 || tapKeys[0] == Key.None)
+                return string.Empty;
+
+            return TapKeyParser.Format(tapKeys[0]);
+        }
+
+        /// <summary>
+        /// Replaces keyboard bindings from plain text. Matching is case-insensitive ("a" == "A").
+        /// </summary>
+        public bool SetPrimaryTapKey(string keyText)
+        {
+            var parsed = TapKeyParser.ParseBindings(keyText);
+            if (parsed.Length == 0)
+                return false;
+
+            tapKeys = parsed;
+            _keyboardInput.SetBindings(tapKeys);
+            return true;
+        }
+
+        public float TapsPerSecond => _effortModel.TapsPerSecond;
+
+        /// <summary>0 at the top-gait tap rate, 1 once the player hits the full overdrive rate.</summary>
+        public float Overdrive => CalculateOverdrive();
+
         public float EstimatedBestTimeSeconds => ActiveRaceDistance /
-            Mathf.Max(0.01f, sprintMetersPerSecond * courseSpeedMultiplier);
+            Mathf.Max(0.01f, sprintMetersPerSecond * courseSpeedMultiplier * MaxOverdriveMultiplier);
+
+        float MaxOverdriveMultiplier => enableOverdrive ? Mathf.Max(1f, overdriveSpeedMultiplier) : 1f;
+
+        float DriveCeiling => enableOverdrive
+            ? Mathf.Max(1f, tapsPerSecondForFullOverdrive / Mathf.Max(0.1f, tapsPerSecondForMax))
+            : 1f;
+
+        float CalculateOverdrive()
+        {
+            if (!enableOverdrive) return 0f;
+
+            var lower = Mathf.Max(0.1f, tapsPerSecondForMax);
+            var upper = Mathf.Max(lower + 0.01f, tapsPerSecondForFullOverdrive);
+            return Mathf.Clamp01((_effortModel.TapsPerSecond - lower) / (upper - lower));
+        }
 
         public void SetRaceInputEnabled(bool enabled)
         {
             _raceInputEnabled = enabled;
-            if (!enabled)
-            {
-                _gait = 0;
-                _animationGait = 0;
-                _effortModel.Reset();
-                _travelSpeed.Reset();
-                DriveGait(0);
-            }
+            if (enabled) return;
+
+            _effortModel.Reset();
+
+            // A horse pulling up after the post keeps its own momentum. Cutting input
+            // here would freeze it mid-stride the instant the results flow starts.
+            if (_runningOut) return;
+
+            _gait = 0;
+            _animationGait = 0;
+            _travelSpeed.Reset();
+            DriveGait(0);
         }
 
         public void RegisterTap()
@@ -166,6 +232,11 @@ namespace HorseRacing.Race
         {
             tapWindow = Mathf.Max(0.05f, tapWindow);
             tapsPerSecondForMax = Mathf.Max(0.1f, tapsPerSecondForMax);
+            tapsPerSecondForFullOverdrive = Mathf.Max(
+                tapsPerSecondForMax + 0.1f, tapsPerSecondForFullOverdrive);
+            overdriveSpeedMultiplier = Mathf.Clamp(overdriveSpeedMultiplier, 1f, 2.5f);
+            overdriveAnimationSpeedMultiplier = Mathf.Clamp(overdriveAnimationSpeedMultiplier, 1f, 2f);
+            finishRunOutSeconds = Mathf.Max(0f, finishRunOutSeconds);
             accelSmoothTime = Mathf.Max(0f, accelSmoothTime);
             coastSmoothTime = Mathf.Max(0f, coastSmoothTime);
             raceDistanceMeters = Mathf.Max(10f, raceDistanceMeters);
@@ -444,7 +515,7 @@ namespace HorseRacing.Race
             if (_keyboardInput.WasPressedThisFrame(Keyboard.current)) RegisterTap();
 
             _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
-                accelSmoothTime, coastSmoothTime);
+                accelSmoothTime, coastSmoothTime, DriveCeiling);
             _gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
                 walkAt, trotAt, canterAt, gallopAt, sprintAt, gaitHysteresis);
             _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
@@ -498,6 +569,13 @@ namespace HorseRacing.Race
         {
             if (!_ready) return;
 
+            if (_runningOut)
+            {
+                TickRunOut(Time.deltaTime);
+                ApplyPose(false);
+                return;
+            }
+
             // Hold the grid pose while the countdown runs. Without this the animal
             // controller's own gravity settles the horse a little lower each frame and
             // the first race frame snaps it back up to the spline.
@@ -530,7 +608,9 @@ namespace HorseRacing.Race
             if (nativeDistance > 0.00001f)
                 _travelSpeed.FollowNative(distance, deltaTime);
 
-            distance *= courseSpeedMultiplier;
+            var overdrive = CalculateOverdrive();
+            distance *= courseSpeedMultiplier * OverdriveTravelMultiplier(overdrive);
+            ApplyOverdriveAnimationSpeed(overdrive);
 
             _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
                 _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
@@ -548,13 +628,88 @@ namespace HorseRacing.Race
 
         void CompleteRace()
         {
-            _gait = 0;
-            _animationGait = 0;
+            // Speed carried over the line, in track metres per second, so the pull-up
+            // starts from whatever pace the player actually finished on.
+            _runOutStartSpeed = _travelSpeed.Speed * courseSpeedMultiplier *
+                OverdriveTravelMultiplier(CalculateOverdrive());
+            _runOutTimer = 0f;
+            _runningOut = finishRunOutSeconds > 0.01f && _runOutStartSpeed > 0.1f;
+
             _effortModel.Reset();
             _rootMotion.Reset();
+
+            if (!_runningOut)
+            {
+                _gait = 0;
+                _animationGait = 0;
+                _travelSpeed.Reset();
+                DriveGait(0);
+            }
+
+            onRaceFinished?.Invoke();
+        }
+
+        /// <summary>
+        /// Carries the horse past the winning post and eases it down through the gaits.
+        /// Progress is written straight to the spline because the race distance model is
+        /// already full, and the clock has already been stopped on the line.
+        /// </summary>
+        void TickRunOut(float deltaTime)
+        {
+            if (deltaTime <= 0f) return;
+
+            _runOutTimer += deltaTime;
+            var k = Mathf.Clamp01(_runOutTimer / Mathf.Max(0.01f, finishRunOutSeconds));
+
+            // Squared falloff reads as a rider sitting up and letting the horse coast
+            // rather than braking, and it lands on zero exactly at the end of the window.
+            var remaining = 1f - k;
+            var speed = _runOutStartSpeed * remaining * remaining;
+
+            if (speed > 0.05f)
+                _normalizedT = Mathf.Repeat(_normalizedT + speed * deltaTime / _splineLength, 1f);
+
+            var gaitSpeed = speed / Mathf.Max(0.01f, courseSpeedMultiplier);
+            _travelSpeed.FollowNative(gaitSpeed * deltaTime, deltaTime);
+            _animationGait = speed <= 0.05f
+                ? 0
+                : GaitTravelSpeedModel.SelectAnimationGait(0, gaitSpeed,
+                    walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
+                    gallopMetersPerSecond, sprintMetersPerSecond);
+            _gait = _animationGait;
+            ApplyOverdriveAnimationSpeed(0f);
+            DriveGait(_animationGait);
+
+            if (k < 1f) return;
+
+            _runningOut = false;
+            _gait = 0;
+            _animationGait = 0;
             _travelSpeed.Reset();
             DriveGait(0);
-            onRaceFinished?.Invoke();
+        }
+
+        float OverdriveTravelMultiplier(float overdrive)
+        {
+            return enableOverdrive
+                ? 1f + Mathf.Clamp01(overdrive) * (Mathf.Max(1f, overdriveSpeedMultiplier) - 1f)
+                : 1f;
+        }
+
+        void ApplyOverdriveAnimationSpeed(float overdrive)
+        {
+            if (!animal) return;
+
+            // Only the top two gaits get sped up. Anything slower would look like the
+            // horse is scrabbling rather than extending.
+            var wanted = enableOverdrive && _animationGait >= 4
+                ? 1f + Mathf.Clamp01(overdrive) * (Mathf.Max(1f, overdriveAnimationSpeedMultiplier) - 1f)
+                : 1f;
+
+            if (Mathf.Abs(wanted - _appliedAnimatorSpeed) < 0.01f) return;
+
+            _appliedAnimatorSpeed = wanted;
+            animal.SetAnimatorSpeed(wanted);
         }
 
         /// <summary>Returns the horse to its start for the next event player.</summary>
@@ -566,10 +721,15 @@ namespace HorseRacing.Race
             _yawVelocity = 0f;
             _gait = 0;
             _animationGait = 0;
+            _runningOut = false;
+            _runOutTimer = 0f;
+            _runOutStartSpeed = 0f;
             _effortModel.Reset();
             _rootMotion.Reset();
             _travelSpeed.Reset();
             _raceProgress.Reset();
+            _appliedAnimatorSpeed = 1f;
+            if (animal) animal.SetAnimatorSpeed(1f);
             ApplyPose(true);
             DriveGait(0);
         }
@@ -594,20 +754,32 @@ namespace HorseRacing.Race
                 animal.Sprint_Set(false);
                 animal.SetInputAxis(Vector3.zero);
                 animal.StopMoving();
-                if (animal.ActiveState == null || animal.ActiveState.ID.ID != 0)
-                    animal.State_Force(0);
+                ForceState(0);
                 return;
             }
 
             animal.AlwaysForward = true;
             animal.SetInputAxis(Vector3.forward);
-            if (animal.ActiveState == null || animal.ActiveState.ID.ID != 1)
-                animal.State_Force(1);
+            ForceState(1);
 
             animal.Sprint_Set(false);
             var speedIndex = Mathf.Clamp(gait >= 5 ? 4 : gait, 1, 4);
             if (animal.CurrentSpeedIndex != speedIndex)
                 animal.Speed_CurrentIndex_Set(speedIndex);
+        }
+
+        /// <summary>
+        /// Forces a Malbers state only once the controller owns a live state. Called
+        /// before MAnimal has initialised, State_Force reaches its debug logger with an
+        /// unset state and throws, which used to escape callers' Awake and get their
+        /// component disabled by Unity.
+        /// </summary>
+        void ForceState(int stateId)
+        {
+            if (animal.ActiveState == null) return;
+            if (animal.ActiveState.ID != null && animal.ActiveState.ID.ID == stateId) return;
+
+            animal.State_Force(stateId);
         }
 
         void ApplyPose(bool instant)
@@ -687,6 +859,10 @@ namespace HorseRacing.Race
             _ready = false;
             _gait = 0;
             _animationGait = 0;
+            _runningOut = false;
+            _runOutTimer = 0f;
+            _runOutStartSpeed = 0f;
+            _appliedAnimatorSpeed = 1f;
             _effortModel.Reset();
             _rootMotion.Reset();
             _travelSpeed.Reset();

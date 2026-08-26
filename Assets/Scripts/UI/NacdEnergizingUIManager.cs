@@ -13,6 +13,17 @@ namespace HorseRacing.UI
     /// </summary>
     public sealed class NacdEnergizingUIManager : MonoBehaviour
     {
+        /// <summary>One row of the fastest-times board, wired in the Inspector.</summary>
+        [System.Serializable]
+        sealed class LeaderboardRowView
+        {
+            public RectTransform root;
+            public Image plate;
+            public TMP_Text rankText;
+            public TMP_Text nameText;
+            public TMP_Text timeText;
+        }
+
         enum FlowState
         {
             StartPage,
@@ -49,22 +60,38 @@ namespace HorseRacing.UI
         [SerializeField] TMP_Text countdownText;
         [SerializeField] TMP_Text raceTimerText;
 
-        [Header("Split results (nameplate style)")]
-        [SerializeField] RectTransform player1OutcomePlate;
-        [SerializeField] TMP_Text player1OutcomeNameText;
-        [SerializeField] TMP_Text player1OutcomeVerdictText;
-        [SerializeField] RectTransform player1OutcomeNameUnderline;
-        [SerializeField] RectTransform player1OutcomeVerdictUnderline;
-        [SerializeField] RectTransform player2OutcomePlate;
-        [SerializeField] TMP_Text player2OutcomeNameText;
-        [SerializeField] TMP_Text player2OutcomeVerdictText;
-        [SerializeField] RectTransform player2OutcomeNameUnderline;
-        [SerializeField] RectTransform player2OutcomeVerdictUnderline;
+        [Header("Results — verdict on the nameplates")]
+        [Tooltip("Separator between the rider name and the verdict, e.g. ALEX — WON.")]
+        [SerializeField] string verdictSeparator = " — ";
+        [SerializeField] string wonLabel = "WON";
+        [SerializeField] string lostLabel = "LOST";
+        [SerializeField] string tieLabel = "TIE";
+        [Tooltip("Shown instead of WON/LOST when only one rider is racing.")]
+        [SerializeField] string soloFinishLabel = "FINISHED";
+        [SerializeField] Color winnerHighlightColor = new Color(0.85f, 0.55f, 0.46f, 1f);
+        [SerializeField] Color loserHighlightColor = new Color(0.62f, 0.63f, 0.6f, 1f);
+        [Tooltip("Dead heat window. Times inside this many seconds of each other count as a tie.")]
+        [SerializeField] float tieToleranceSeconds = 0.05f;
+
+        [Header("Results — leaderboard")]
+        [SerializeField] CanvasGroup leaderboardCG;
+        [SerializeField] RectTransform leaderboardPanel;
+        [SerializeField] TMP_Text leaderboardFastestText;
+        [SerializeField] LeaderboardRowView[] leaderboardRows = new LeaderboardRowView[5];
+        [SerializeField] Color leaderboardRowColor = new Color(0.878f, 0.812f, 0.686f, 0.93f);
+        [SerializeField] Color leaderboardRowHighlightColor = new Color(0.85f, 0.55f, 0.46f, 1f);
+        [Tooltip("How many times the saved board keeps, even though fewer rows are shown.")]
+        [SerializeField] int leaderboardCapacity = 10;
+        [SerializeField] string leaderboardEmptyTime = "—";
 
         [Header("Results timing")]
-        [SerializeField] float resultsHoldSeconds = 6f;
+        [Tooltip("Longest wait for the horses to finish pulling up before the verdict appears.")]
+        [SerializeField] float runOutWaitSeconds = 3.6f;
+        [SerializeField] float verdictHoldSeconds = 1.1f;
+        [SerializeField] float resultsHoldSeconds = 7f;
         [SerializeField] float resultsIntroDuration = 0.65f;
         [SerializeField] Ease resultsIntroEase = Ease.OutCubic;
+        [SerializeField] float verdictPopScale = 1.08f;
 
         [Header("Race timer")]
         [Tooltip("TMP <mspace> width so digits do not shift as the clock ticks.")]
@@ -112,6 +139,13 @@ namespace HorseRacing.UI
         float _player1NameplateRestY;
         float _player2NameplateRestY;
         bool _nameplateRestCached;
+        RaceLeaderboardStore _leaderboard;
+        int _player1BoardPosition;
+        int _player2BoardPosition;
+        Color _player1HighlightRestColor = Color.white;
+        Color _player2HighlightRestColor = Color.white;
+        bool _highlightRestCached;
+        bool _showingVerdict;
 
         bool Solo => playerCount <= 1;
 
@@ -128,7 +162,9 @@ namespace HorseRacing.UI
             ApplyViewLayout();
             ConfigureRaceTimer();
             ApplyCountdownShadow(countdownText);
-            SetOutcomesVisible(false);
+            CacheHighlightRestColors();
+            LoadLeaderboard();
+            SetLeaderboardVisible(false, true);
 
             WireButton(startContinueButton, OnStartContinue);
             WireButton(instructionsStartButton, OnInstructionsStart);
@@ -136,17 +172,36 @@ namespace HorseRacing.UI
             if (raceDriver)
             {
                 raceDriver.onRaceFinished.AddListener(OnDriver1RaceFinished);
-                raceDriver.SetRaceInputEnabled(false);
+                ParkDriver(raceDriver);
             }
 
             if (raceDriverP2)
             {
                 raceDriverP2.onRaceFinished.AddListener(OnDriver2RaceFinished);
-                raceDriverP2.SetRaceInputEnabled(false);
+                ParkDriver(raceDriverP2);
             }
 
             RefreshPlayerNames();
             ApplyState(FlowState.StartPage, true);
+        }
+
+        /// <summary>
+        /// Holds a driver at the grid. The animal controller can throw from inside the
+        /// third-party state machine while it is still initialising, and an exception
+        /// escaping Awake makes Unity disable this component, which silently freezes the
+        /// HUD clock. The HUD matters more than one driver's start state.
+        /// </summary>
+        void ParkDriver(RaceSplineTapDriver driver)
+        {
+            try
+            {
+                driver.SetRaceInputEnabled(false);
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning(
+                    $"{driver.name} could not be parked at the grid: {exception.Message}", driver);
+            }
         }
 
         void ResolveRaceDrivers()
@@ -272,25 +327,12 @@ namespace HorseRacing.UI
             if (player2Nameplate)
                 player2Nameplate.gameObject.SetActive(!Solo);
 
-            if (player2OutcomePlate)
-                player2OutcomePlate.gameObject.SetActive(!Solo);
-
-            if (Solo && player1OutcomePlate)
-            {
-                var rt = player1OutcomePlate;
-                rt.anchorMin = new Vector2(0f, 0.5f);
-                rt.anchorMax = new Vector2(1f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = new Vector2(0f, 0f);
-            }
-            else if (player1OutcomePlate)
-            {
-                var rt = player1OutcomePlate;
-                rt.anchorMin = new Vector2(0f, 0.5f);
-                rt.anchorMax = new Vector2(0.5f, 0.5f);
-                rt.pivot = new Vector2(0.5f, 0.5f);
-                rt.anchoredPosition = Vector2.zero;
-            }
+            // One rider gets the whole width so the plate sits centre screen instead of
+            // hugging the left half where the split divider used to be.
+            if (!player1Nameplate) return;
+            player1Nameplate.anchorMin = new Vector2(0f, 1f);
+            player1Nameplate.anchorMax = new Vector2(Solo ? 1f : 0.5f, 1f);
+            player1Nameplate.anchoredPosition = new Vector2(0f, player1Nameplate.anchoredPosition.y);
         }
 
         public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
@@ -303,7 +345,7 @@ namespace HorseRacing.UI
             _player1Time = -1f;
             _player2Time = -1f;
             _raceEndTime = -1f;
-            RestartDrivers(inputEnabled: false);
+            PrepareRaceFieldForMenu();
             ApplyState(FlowState.StartPage, true);
         }
 
@@ -333,8 +375,14 @@ namespace HorseRacing.UI
 
         void KillOutcomeTweens()
         {
-            GetOutcomeRoot(player1OutcomePlate)?.DOKill();
-            GetOutcomeRoot(player2OutcomePlate)?.DOKill();
+            leaderboardCG?.DOKill();
+            if (leaderboardPanel) leaderboardPanel.DOKill();
+            if (leaderboardRows == null) return;
+
+            foreach (var row in leaderboardRows)
+            {
+                if (row?.root != null) row.root.DOKill();
+            }
         }
 
         static void WireButton(Button button, UnityEngine.Events.UnityAction action)
@@ -430,154 +478,258 @@ namespace HorseRacing.UI
 
         IEnumerator ShowResultsSequence()
         {
-            RefreshResultsCopy();
             ApplyState(FlowState.Results);
-            AnimateResultsIntro();
+            SubmitLeaderboardTimes();
 
-            var hold = resultsHoldSeconds;
-            while (hold > 0f)
-            {
-                hold -= Time.deltaTime;
-                yield return null;
-            }
+            // Let the horses gallop out and ease down before the screen calls it, so the
+            // race reads as finished rather than switched off.
+            yield return WaitForRunOut();
 
-            RestartDrivers(inputEnabled: false);
+            ApplyVerdicts();
+            AnimateVerdictPop();
+            yield return WaitSeconds(verdictHoldSeconds);
+
+            RefreshLeaderboardRows();
+            SetLeaderboardVisible(true, false);
+            AnimateLeaderboardIntro();
+
+            yield return WaitSeconds(resultsHoldSeconds);
+
+            SetLeaderboardVisible(false, true);
+            PrepareRaceFieldForMenu();
             _player1Time = -1f;
             _player2Time = -1f;
             _raceEndTime = -1f;
+            _player1BoardPosition = 0;
+            _player2BoardPosition = 0;
             ApplyState(FlowState.StartPage);
             _flowCoroutine = null;
         }
 
-        void RefreshResultsCopy()
+        static IEnumerator WaitSeconds(float seconds)
         {
-            ApplyOutcomeLayout();
+            var remaining = Mathf.Max(0f, seconds);
+            while (remaining > 0f)
+            {
+                remaining -= Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        IEnumerator WaitForRunOut()
+        {
+            var elapsed = 0f;
+            var limit = Mathf.Max(0f, runOutWaitSeconds);
+            while (elapsed < limit && AnyDriverRunningOut())
+            {
+                elapsed += Time.deltaTime;
+                yield return null;
+            }
+        }
+
+        bool AnyDriverRunningOut()
+        {
+            if (raceDriver && raceDriver.IsRunningOut) return true;
+            return !Solo && raceDriverP2 && raceDriverP2.IsRunningOut;
+        }
+
+        void LoadLeaderboard()
+        {
+            _leaderboard = new RaceLeaderboardStore(Mathf.Max(1, leaderboardCapacity));
+            _leaderboard.Load();
+        }
+
+        void SubmitLeaderboardTimes()
+        {
+            if (_leaderboard == null)
+                LoadLeaderboard();
+
+            _player1BoardPosition = _player1Time > 0f
+                ? _leaderboard.Submit(player1Name, _player1Time)
+                : 0;
+
+            _player2BoardPosition = !Solo && raceDriverP2 && _player2Time > 0f
+                ? _leaderboard.Submit(player2Name, _player2Time)
+                : 0;
+        }
+
+        /// <summary>
+        /// Rewrites each nameplate as "NAME — WON" so the result lands in the styling the
+        /// panel already uses, instead of a separate overlay fighting the race view.
+        /// </summary>
+        void ApplyVerdicts()
+        {
+            _showingVerdict = true;
 
             if (Solo || !raceDriverP2)
             {
-                ApplyOutcome(player1OutcomeNameText, player1OutcomeVerdictText,
-                    player1OutcomeNameUnderline, player1OutcomeVerdictUnderline, player1OutcomePlate,
-                    player1Name, "FINISH");
-            }
-            else
-            {
-                var tie = _player1Time >= 0f && _player2Time >= 0f &&
-                          Mathf.Abs(_player1Time - _player2Time) <= 0.05f;
-                var p1Won = !tie && _player1Time <= _player2Time;
-
-                ApplyOutcome(player1OutcomeNameText, player1OutcomeVerdictText,
-                    player1OutcomeNameUnderline, player1OutcomeVerdictUnderline, player1OutcomePlate,
-                    player1Name, tie ? "TIE" : p1Won ? "WON" : "LOST");
-
-                ApplyOutcome(player2OutcomeNameText, player2OutcomeVerdictText,
-                    player2OutcomeNameUnderline, player2OutcomeVerdictUnderline, player2OutcomePlate,
-                    player2Name, tie ? "TIE" : p1Won ? "LOST" : "WON");
-            }
-        }
-
-        void ApplyOutcomeLayout()
-        {
-            ApplySplitOutcomeAnchor(player1OutcomeNameText, soloCenter: Solo, leftHalf: true);
-            ApplySplitOutcomeAnchor(player2OutcomeNameText, soloCenter: false, leftHalf: false);
-        }
-
-        static void ApplySplitOutcomeAnchor(TMP_Text nameText, bool soloCenter, bool leftHalf)
-        {
-            if (!nameText) return;
-
-            var root = nameText.transform.parent as RectTransform;
-            if (!root) return;
-
-            if (soloCenter)
-            {
-                root.anchorMin = new Vector2(0.5f, 0.5f);
-                root.anchorMax = new Vector2(0.5f, 0.5f);
-                root.pivot = new Vector2(0.5f, 0.5f);
-                root.anchoredPosition = Vector2.zero;
+                ApplyVerdict(player1NameText, player1Underline, player1Plate,
+                    player1Name, soloFinishLabel, true);
                 return;
             }
 
-            root.anchorMin = new Vector2(leftHalf ? 0f : 0.5f, 0.5f);
-            root.anchorMax = new Vector2(leftHalf ? 0.5f : 1f, 0.5f);
-            root.pivot = new Vector2(0.5f, 0.5f);
-            root.anchoredPosition = Vector2.zero;
+            var bothFinished = _player1Time >= 0f && _player2Time >= 0f;
+            var tie = bothFinished &&
+                      Mathf.Abs(_player1Time - _player2Time) <= Mathf.Max(0f, tieToleranceSeconds);
+            var p1Won = !tie && _player1Time >= 0f &&
+                        (_player2Time < 0f || _player1Time <= _player2Time);
+
+            ApplyVerdict(player1NameText, player1Underline, player1Plate,
+                player1Name, tie ? tieLabel : p1Won ? wonLabel : lostLabel, tie || p1Won);
+            ApplyVerdict(player2NameText, player2Underline, player2Plate,
+                player2Name, tie ? tieLabel : p1Won ? lostLabel : wonLabel, tie || !p1Won);
         }
 
-        void ApplyOutcome(
-            TMP_Text nameText, TMP_Text verdictText,
-            RectTransform nameUnderline, RectTransform verdictUnderline, RectTransform plate,
-            string name, string verdict)
+        void ApplyVerdict(TMP_Text nameText, RectTransform underline, RectTransform plate,
+            string name, string verdict, bool won)
         {
-            if (nameText)
-                nameText.text = string.IsNullOrWhiteSpace(name) ? "PLAYER" : name.Trim().ToUpperInvariant();
-            if (verdictText)
-                verdictText.text = verdict;
+            if (!nameText) return;
 
-            var nameWidth = MeasureTextWidth(nameText);
-            var verdictWidth = MeasureTextWidth(verdictText);
-            var blockWidth = Mathf.Max(nameWidth, verdictWidth);
+            var label = string.IsNullOrWhiteSpace(name) ? "PLAYER" : name.Trim().ToUpperInvariant();
+            nameText.text = $"{label}{verdictSeparator}{verdict}";
+            FitNameplate(nameText, underline, plate);
 
-            if (nameUnderline)
-                nameUnderline.sizeDelta = new Vector2(blockWidth + underlinePadding, nameUnderline.sizeDelta.y);
-            if (verdictUnderline)
-                verdictUnderline.sizeDelta = new Vector2(blockWidth + underlinePadding, verdictUnderline.sizeDelta.y);
-            if (plate)
-                plate.sizeDelta = new Vector2(blockWidth + platePadding, plate.sizeDelta.y);
+            var highlight = underline ? underline.GetComponent<Image>() : null;
+            if (highlight)
+                highlight.color = won ? winnerHighlightColor : loserHighlightColor;
         }
 
-        static float MeasureTextWidth(TMP_Text text)
+        void AnimateVerdictPop()
         {
-            if (!text) return 0f;
-            text.ForceMeshUpdate();
-            var width = text.textBounds.size.x;
-            return width > 0f && !float.IsNaN(width) ? width : 0f;
-        }
-
-        void AnimateResultsIntro()
-        {
-            AnimateOutcomePlate(GetOutcomeRoot(player1OutcomePlate), 0f);
+            PopNameplate(player1Nameplate);
             if (!Solo)
-                AnimateOutcomePlate(GetOutcomeRoot(player2OutcomePlate), pageStagger);
+                PopNameplate(player2Nameplate);
         }
 
-        static RectTransform GetOutcomeRoot(RectTransform plate)
+        void PopNameplate(RectTransform plate)
         {
-            if (!plate) return null;
-            return plate.parent as RectTransform ?? plate;
-        }
+            if (!plate) return;
 
-        void AnimateOutcomePlate(RectTransform root, float delay)
-        {
-            if (!root) return;
-
-            root.DOKill();
-            root.localScale = Vector3.one * 0.94f;
-            var canvasGroup = root.GetComponent<CanvasGroup>();
-            if (!canvasGroup)
-                canvasGroup = root.gameObject.AddComponent<CanvasGroup>();
-            canvasGroup.alpha = 0f;
-
-            DOTween.Sequence()
-                .SetDelay(delay)
+            plate.DOKill();
+            plate.localScale = Vector3.one;
+            plate.DOScale(Mathf.Max(1f, verdictPopScale), resultsIntroDuration * 0.45f)
+                .SetEase(resultsIntroEase)
+                .SetLoops(2, LoopType.Yoyo)
                 .SetUpdate(true)
-                .Append(canvasGroup.DOFade(1f, resultsIntroDuration).SetEase(resultsIntroEase))
-                .Join(root.DOScale(1f, resultsIntroDuration).SetEase(resultsIntroEase))
-                .SetTarget(root);
+                .SetTarget(plate);
         }
 
-        void SetOutcomesVisible(bool visible)
+        void CacheHighlightRestColors()
         {
-            SetOutcomeVisible(GetOutcomeRoot(player1OutcomePlate), visible);
-            SetOutcomeVisible(GetOutcomeRoot(player2OutcomePlate), visible && !Solo);
+            if (_highlightRestCached) return;
+
+            var p1 = player1Underline ? player1Underline.GetComponent<Image>() : null;
+            if (p1) _player1HighlightRestColor = p1.color;
+
+            var p2 = player2Underline ? player2Underline.GetComponent<Image>() : null;
+            if (p2) _player2HighlightRestColor = p2.color;
+
+            _highlightRestCached = true;
         }
 
-        static void SetOutcomeVisible(RectTransform root, bool visible)
+        void RestoreHighlightColors()
         {
-            if (!root) return;
-            root.gameObject.SetActive(visible);
-            var cg = root.GetComponent<CanvasGroup>();
-            if (cg)
-                cg.alpha = visible ? 1f : 0f;
+            var p1 = player1Underline ? player1Underline.GetComponent<Image>() : null;
+            if (p1) p1.color = _player1HighlightRestColor;
+
+            var p2 = player2Underline ? player2Underline.GetComponent<Image>() : null;
+            if (p2) p2.color = _player2HighlightRestColor;
+        }
+
+        void RefreshLeaderboardRows()
+        {
+            if (leaderboardRows == null) return;
+            if (_leaderboard == null) LoadLeaderboard();
+
+            var entries = _leaderboard.Model.Entries;
+
+            if (leaderboardFastestText)
+            {
+                var fastest = _leaderboard.Model.Fastest;
+                leaderboardFastestText.text = fastest != null
+                    ? $"FASTEST {RaceLeaderboardModel.FormatSeconds(fastest.seconds)}"
+                    : $"FASTEST {leaderboardEmptyTime}";
+            }
+
+            for (var i = 0; i < leaderboardRows.Length; i++)
+            {
+                var row = leaderboardRows[i];
+                if (row == null) continue;
+
+                var hasEntry = i < entries.Count;
+                if (row.root)
+                    row.root.gameObject.SetActive(true);
+
+                if (row.rankText)
+                    row.rankText.text = $"{i + 1}";
+                if (row.nameText)
+                    row.nameText.text = hasEntry ? entries[i].name : "—";
+                if (row.timeText)
+                {
+                    row.timeText.text = hasEntry
+                        ? FormatTime(entries[i].seconds, timerMonospaceEm)
+                        : leaderboardEmptyTime;
+                    row.timeText.richText = true;
+                }
+
+                var isNewRun = hasEntry &&
+                               (i + 1 == _player1BoardPosition || i + 1 == _player2BoardPosition);
+                if (row.plate)
+                    row.plate.color = isNewRun ? leaderboardRowHighlightColor : leaderboardRowColor;
+            }
+        }
+
+        void SetLeaderboardVisible(bool visible, bool instant)
+        {
+            if (leaderboardPanel)
+                leaderboardPanel.gameObject.SetActive(visible);
+
+            if (!leaderboardCG) return;
+
+            leaderboardCG.DOKill();
+            if (instant || fadeDuration <= 0f)
+            {
+                leaderboardCG.alpha = visible ? 1f : 0f;
+                leaderboardCG.interactable = visible;
+                leaderboardCG.blocksRaycasts = visible;
+                return;
+            }
+
+            leaderboardCG.interactable = visible;
+            leaderboardCG.blocksRaycasts = visible;
+            leaderboardCG.DOFade(visible ? 1f : 0f, fadeDuration * 0.7f)
+                .SetEase(visible ? fadeInEase : fadeOutEase)
+                .SetUpdate(true);
+        }
+
+        void AnimateLeaderboardIntro()
+        {
+            if (!leaderboardPanel) return;
+
+            leaderboardPanel.DOKill();
+            leaderboardPanel.localScale = Vector3.one * 0.95f;
+            leaderboardPanel.DOScale(1f, resultsIntroDuration)
+                .SetEase(resultsIntroEase)
+                .SetUpdate(true)
+                .SetTarget(leaderboardPanel);
+
+            if (leaderboardRows == null) return;
+
+            for (var i = 0; i < leaderboardRows.Length; i++)
+            {
+                var row = leaderboardRows[i];
+                if (row?.root == null) continue;
+
+                var rowTransform = row.root;
+                rowTransform.DOKill();
+                var restX = rowTransform.anchoredPosition.x;
+                rowTransform.anchoredPosition = new Vector2(restX - 40f, rowTransform.anchoredPosition.y);
+                rowTransform.DOAnchorPosX(restX, resultsIntroDuration)
+                    .SetDelay(pageStagger * i)
+                    .SetEase(resultsIntroEase)
+                    .SetUpdate(true)
+                    .SetTarget(rowTransform);
+            }
         }
 
         void RefreshRaceTimer(float? elapsedOverride = null)
@@ -589,6 +741,16 @@ namespace HorseRacing.UI
                 ? _raceEndTime
                 : Time.time - _raceStartTime);
             raceTimerText.text = FormatTime(elapsed, timerMonospaceEm);
+        }
+
+        /// <summary>
+        /// Returns horses to the grid and re-seats the chase cameras in the same frame,
+        /// so the follow rig never interpolates across the course behind them.
+        /// </summary>
+        void PrepareRaceFieldForMenu()
+        {
+            RestartDrivers(inputEnabled: false);
+            RaceCameraTarget.SnapAllAfterTeleport();
         }
 
         void RestartDrivers(bool inputEnabled)
@@ -622,8 +784,25 @@ namespace HorseRacing.UI
                 instructionsBodyText.text = instructionsCopy;
         }
 
+        void ResetNameplateScales()
+        {
+            if (player1Nameplate)
+            {
+                player1Nameplate.DOKill();
+                player1Nameplate.localScale = Vector3.one;
+            }
+
+            if (!player2Nameplate) return;
+            player2Nameplate.DOKill();
+            player2Nameplate.localScale = Vector3.one;
+        }
+
         void RefreshPlayerNames()
         {
+            // The verdict text lives in the same labels, so plain names would overwrite
+            // "ALEX — WON" the moment anything else refreshed the HUD.
+            if (_showingVerdict) return;
+
             if (player1NameText)
                 player1NameText.text = string.IsNullOrWhiteSpace(player1Name) ? "PLAYER 1" : player1Name.ToUpperInvariant();
             if (player2NameText)
@@ -664,20 +843,36 @@ namespace HorseRacing.UI
 
             var inGame = newState == FlowState.Countdown || newState == FlowState.Racing;
             var showHud = inGame || newState == FlowState.Results;
-            var showOutcomes = newState == FlowState.Results;
+
+            // Entering the race view after a menu page: the horses were re-gridded while
+            // nobody was watching, so start the chase rig already seated behind them.
+            if (showHud && !ShowsRaceView(previous))
+                RaceCameraTarget.SnapAllAfterTeleport();
 
             if (newState == FlowState.InstructionsPage)
                 RefreshInstructions();
 
+            // Leaving Results clears the verdict wording so the plates read as plain
+            // names again on the next match.
+            if (newState != FlowState.Results && _showingVerdict)
+            {
+                _showingVerdict = false;
+                RestoreHighlightColors();
+                ResetNameplateScales();
+            }
+
             RefreshPlayerNames();
-            SetOutcomesVisible(showOutcomes);
+
+            if (newState != FlowState.Results)
+                SetLeaderboardVisible(false, instant);
 
             if (player1Nameplate)
-                player1Nameplate.gameObject.SetActive(showHud && !showOutcomes);
+                player1Nameplate.gameObject.SetActive(showHud);
             if (player2Nameplate)
-                player2Nameplate.gameObject.SetActive(showHud && !showOutcomes && !Solo);
+                player2Nameplate.gameObject.SetActive(showHud && !Solo);
 
-            // Keep the live race view up; outcomes are HUD-style plates, not a menu page.
+            // Keep the live race view up; the verdict lands on the nameplates that are
+            // already there rather than on a menu page over the top of the race.
             TransitionPages(
                 menuBackgroundCG, newState == FlowState.InstructionsPage,
                 startPageCG, newState == FlowState.StartPage,
@@ -689,6 +884,11 @@ namespace HorseRacing.UI
             if (inGame && previous != FlowState.Countdown && previous != FlowState.Racing)
                 PlayNameplateIntro(instant);
         }
+
+        static bool ShowsRaceView(FlowState state) =>
+            state == FlowState.Countdown ||
+            state == FlowState.Racing ||
+            state == FlowState.Results;
 
         void TransitionPages(
             CanvasGroup menuBg, bool menuBgOn,

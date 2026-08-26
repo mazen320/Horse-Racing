@@ -52,5 +52,62 @@ namespace HorseRacing.Race.Tests
             Assert.That(TapEffortModel.SelectGait(
                 0f, 1, 0.06f, 0.2f, 0.4f, 0.65f, 0.85f, 0.06f), Is.Zero);
         }
+
+        [Test]
+        public void Drive_KeepsSeparatingPacesAfterEffortIsCapped()
+        {
+            var steady = new TapEffortModel();
+            var fast = new TapEffortModel();
+
+            // 4 taps in the window is already double the 2 taps/second requirement, and
+            // 8 taps is quadruple. Effort saturates for both; drive must not.
+            for (var i = 0; i < 4; i++) steady.RegisterTap(i * 0.25f);
+            for (var i = 0; i < 8; i++) fast.RegisterTap(i * 0.12f);
+
+            var steadyEffort = steady.Tick(1f, 1f, 1f, 2f, 0f, 0f, 4f);
+            var fastEffort = fast.Tick(1f, 1f, 1f, 2f, 0f, 0f, 4f);
+
+            Assert.That(steadyEffort, Is.EqualTo(1f));
+            Assert.That(fastEffort, Is.EqualTo(1f));
+            Assert.That(fast.Drive, Is.GreaterThan(steady.Drive));
+            Assert.That(fast.TapsPerSecond, Is.GreaterThan(steady.TapsPerSecond));
+        }
+
+        [Test]
+        public void Drive_RespectsCeiling()
+        {
+            var model = new TapEffortModel();
+            for (var i = 0; i < 40; i++) model.RegisterTap(i * 0.02f);
+
+            model.Tick(1f, 1f, 1f, 2f, 0f, 0f, 3f);
+
+            Assert.That(model.Drive, Is.EqualTo(3f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Drive_DefaultCeilingMatchesLegacyEffort()
+        {
+            var model = new TapEffortModel();
+            for (var i = 0; i < 20; i++) model.RegisterTap(i * 0.05f);
+
+            var effort = model.Tick(1f, 1f, 1f, 2f, 0f, 0f);
+
+            Assert.That(effort, Is.EqualTo(1f));
+            Assert.That(model.Drive, Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Reset_ClearsDrive()
+        {
+            var model = new TapEffortModel();
+            for (var i = 0; i < 10; i++) model.RegisterTap(i * 0.05f);
+            model.Tick(1f, 1f, 1f, 2f, 0f, 0f, 4f);
+
+            model.Reset();
+
+            Assert.That(model.Drive, Is.Zero);
+            Assert.That(model.TapsPerSecond, Is.Zero);
+            Assert.That(model.Effort, Is.Zero);
+        }
     }
 }
