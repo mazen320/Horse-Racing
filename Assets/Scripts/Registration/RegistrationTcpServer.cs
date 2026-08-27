@@ -54,6 +54,15 @@ namespace HorseRacing.Registration
         public bool HasRegistration => _registered;
         public RegisterEntryData LastRegistration => _lastRegistration;
 
+        public bool HasConnectedClient
+        {
+            get
+            {
+                lock (_clientLock)
+                    return _clients.Count > 0;
+            }
+        }
+
         void Start()
         {
             if (autoStart)
@@ -152,6 +161,15 @@ namespace HorseRacing.Registration
         public void SendPinging()
         {
             SendKeepAliveInternal();
+        }
+
+        /// <summary>
+        /// Echo the start back the moment it is accepted. The raceStarted broadcast only lands after
+        /// the countdown, which is too late for the tablet's resend watchdog.
+        /// </summary>
+        void BroadcastStartAck()
+        {
+            Broadcast(new RegisterEntryData { start = true });
         }
 
         void MaintenanceTick()
@@ -368,7 +386,11 @@ namespace HorseRacing.Registration
                     }
 
                     if (payload == null)
+                    {
+                        if (logTraffic)
+                            Debug.LogWarning($"[RegistrationTcpServer] Dropping {client.Key}: stream ended or frame length invalid");
                         break;
+                    }
 
                     lock (_clientLock)
                     {
@@ -496,7 +518,10 @@ namespace HorseRacing.Registration
                     Debug.Log($"[RegistrationTcpServer] Registered {data.entries.Count} player(s)");
 
                 if (data.start)
+                {
+                    BroadcastStartAck();
                     StartCommandReceived?.Invoke();
+                }
 
                 return;
             }
@@ -509,6 +534,7 @@ namespace HorseRacing.Registration
                     return;
                 }
 
+                BroadcastStartAck();
                 StartCommandReceived?.Invoke();
                 if (logTraffic)
                     Debug.Log("[RegistrationTcpServer] Start command received");

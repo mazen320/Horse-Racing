@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.IO;
 using UnityEngine;
 
@@ -15,8 +16,10 @@ namespace HorseRacing.Registration
         [SerializeField] bool skipToInstructionsOnRegister = true;
         [SerializeField] bool autoStartRaceOnStartCommand = true;
         [SerializeField] bool appendRegistrationCsv = true;
+        [SerializeField] float clientLossGraceSeconds = 25f;
 
         string _csvPath;
+        Coroutine _clientLossReset;
 
         void Awake()
         {
@@ -48,6 +51,8 @@ namespace HorseRacing.Registration
 
         void OnDisable()
         {
+            CancelClientLossReset();
+
             if (!server)
                 return;
 
@@ -128,11 +133,40 @@ namespace HorseRacing.Registration
 
         void OnClientConnectionChanged(bool connected)
         {
-            if (connected || !uiManager)
+            if (!uiManager)
                 return;
 
-            // Tablet dropped after idle — return PC to attract/idle so it does not stay frozen mid-flow.
-            uiManager.ApplyTabletRestart();
+            if (connected)
+            {
+                CancelClientLossReset();
+                return;
+            }
+
+            // A tablet that reconnects (Wi-Fi blip, app resume) must not wipe the flow, so wait out
+            // the grace period first and only fall back to idle if it never came back.
+            if (_clientLossReset == null)
+                _clientLossReset = StartCoroutine(ResetAfterClientLoss());
+        }
+
+        IEnumerator ResetAfterClientLoss()
+        {
+            yield return new WaitForSecondsRealtime(clientLossGraceSeconds);
+
+            _clientLossReset = null;
+
+            if (server && server.HasConnectedClient)
+                yield break;
+
+            uiManager?.ApplyTabletRestart();
+        }
+
+        void CancelClientLossReset()
+        {
+            if (_clientLossReset == null)
+                return;
+
+            StopCoroutine(_clientLossReset);
+            _clientLossReset = null;
         }
 
         static string FindName(RegisterEntryData data, int userIndex)

@@ -582,7 +582,17 @@ namespace HorseRacing.UI
 
         public void ApplyTabletShowInstructions() => ApplyState(FlowState.InstructionsPage);
 
-        public void ApplyTabletStartRace() => StartMatch();
+        /// <summary>
+        /// The tablet resends Start until it hears back, so a repeat must not restart a countdown
+        /// or a race that is already under way.
+        /// </summary>
+        public void ApplyTabletStartRace()
+        {
+            if (_state == FlowState.Countdown || _state == FlowState.Racing)
+                return;
+
+            StartMatch();
+        }
 
         public void ApplyTabletRestart()
         {
