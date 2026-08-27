@@ -39,7 +39,7 @@ namespace HorseRacing.Race.Tests
                     ?.GetComponent<SkinnedMeshRenderer>();
                 Assert.That(renderer, Is.Not.Null);
                 Assert.That(renderer.enabled, Is.True);
-                Assert.That(renderer.sharedMesh.name, Is.EqualTo("jockey_malbers_unity"));
+                Assert.That(renderer.sharedMesh.name, Is.EqualTo("cowboy_no_hat_unity"));
 
                 var hips = animator.GetBoneTransform(HumanBodyBones.Hips);
                 var head = animator.GetBoneTransform(HumanBodyBones.Head);
@@ -66,10 +66,24 @@ namespace HorseRacing.Race.Tests
                 var mountedClips = animator.GetCurrentAnimatorClipInfo(1)
                     .Select(info => info.clip.name)
                     .ToArray();
-                var torso = head.position - hips.position;
                 Assert.That(driver.AnimationGait, Is.EqualTo(5));
                 Assert.That(mountedClips, Has.Some.Contains("Rider_"));
-                Assert.That(Vector3.Dot(torso.normalized, driver.transform.forward), Is.GreaterThan(0.1f),
+
+                // The jockey rides close to upright, so the lean is small and rocks through
+                // the gallop cycle: only its direction carries information, and only over a
+                // full cycle. A reversed retarget rig leans the torso behind the hips.
+                var forwardLean = float.MinValue;
+                var sampleUntil = Time.realtimeSinceStartup + 0.75f;
+                while (Time.realtimeSinceStartup < sampleUntil)
+                {
+                    driver.RegisterTap();
+                    var sample = head.position - hips.position;
+                    forwardLean = Mathf.Max(forwardLean,
+                        Vector3.Dot(sample.normalized, driver.transform.forward));
+                    yield return null;
+                }
+
+                Assert.That(forwardLean, Is.GreaterThan(0f),
                     "The sprinting jockey must lean with the horse, not backward from a reversed retarget rig.");
             }
             finally

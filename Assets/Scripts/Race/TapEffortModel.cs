@@ -8,10 +8,19 @@ namespace HorseRacing.Race
         public const int MaxTapHistory = 64;
         public const float DefaultDriveCeiling = 1f;
 
+        /// <summary>Fastest pace the estimator reports, far above what feet can produce.</summary>
+        public const float MaxMeasuredTapsPerSecond = 25f;
+
+        /// <summary>Weight the newest gap between taps carries in the pace estimate.</summary>
+        const float PaceBlend = 0.5f;
+
         readonly Queue<float> _tapTimes = new Queue<float>(MaxTapHistory);
         float _effort;
         float _drive;
         float _tapsPerSecond;
+        float _pace;
+        float _lastTapTime;
+        bool _hasLastTap;
 
         public float Effort => _effort;
         public int TapCount => _tapTimes.Count;
@@ -35,6 +44,19 @@ namespace HorseRacing.Race
             if (float.IsNaN(timestamp) || float.IsInfinity(timestamp)) return;
             while (_tapTimes.Count >= MaxTapHistory) _tapTimes.Dequeue();
             _tapTimes.Enqueue(timestamp);
+
+            if (_hasLastTap)
+            {
+                var interval = timestamp - _lastTapTime;
+                if (interval > 0f)
+                {
+                    var instant = Mathf.Min(1f / interval, MaxMeasuredTapsPerSecond);
+                    _pace = _pace > 0f ? Mathf.Lerp(_pace, instant, PaceBlend) : instant;
+                }
+            }
+
+            _lastTapTime = timestamp;
+            _hasLastTap = true;
         }
 
         public float Tick(float now, float deltaTime, float tapWindow,
@@ -53,7 +75,7 @@ namespace HorseRacing.Race
             var cutoff = now - tapWindow;
             while (_tapTimes.Count > 0 && _tapTimes.Peek() < cutoff) _tapTimes.Dequeue();
 
-            var rawRatio = (_tapTimes.Count / tapWindow) / tapsPerSecondForMax;
+            var rawRatio = MeasurePace(now, tapWindow) / tapsPerSecondForMax;
             var target = Mathf.Clamp01(rawRatio);
             _effort = Smooth(_effort, target, deltaTime, accelTime, coastTime);
             _effort = Mathf.Clamp01(_effort);
@@ -71,6 +93,39 @@ namespace HorseRacing.Race
             }
 
             return _effort;
+        }
+
+        /// <summary>
+        /// Taps per second. The gaps between taps are what the pace is read from, so a
+        /// runner at 3.4 steps a second reads faster than one at 3.0 instead of both
+        /// rounding to the same whole number of taps inside the window.
+        /// </summary>
+        float MeasurePace(float now, float tapWindow)
+        {
+            if (_tapTimes.Count == 0)
+            {
+                _pace = 0f;
+                _hasLastTap = false;
+                return 0f;
+            }
+
+            // A lone tap has no gap to measure yet, and taps landing in the same frame
+            // carry no gap either, so the tap count stands in for them. Counting n taps as
+            // n-1 gaps is what keeps this floor from inflating a pace already measured
+            // from the gaps themselves.
+            var counted = Mathf.Max(1f, _tapTimes.Count - 1f) / tapWindow;
+            var pace = Mathf.Max(_pace, counted);
+
+            // However fast the recent taps were, someone who has not tapped for this long
+            // is no longer going faster than one tap per that gap.
+            var silence = now - _lastTapTime;
+            if (_hasLastTap && silence > 0f)
+            {
+                _pace = Mathf.Min(_pace, 1f / silence);
+                pace = Mathf.Min(pace, 1f / silence);
+            }
+
+            return pace;
         }
 
         static float Smooth(float current, float target, float deltaTime,
@@ -126,6 +181,9 @@ namespace HorseRacing.Race
             _effort = 0f;
             _drive = 0f;
             _tapsPerSecond = 0f;
+            _pace = 0f;
+            _lastTapTime = 0f;
+            _hasLastTap = false;
         }
     }
 }

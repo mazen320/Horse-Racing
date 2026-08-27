@@ -35,8 +35,8 @@ namespace HorseRacing.Race.Tests
             Assert.That(renderer.enabled, Is.True);
             Assert.That(renderer.gameObject.activeInHierarchy, Is.True);
             Assert.That(renderer.sharedMesh, Is.Not.Null);
-            Assert.That(renderer.sharedMesh.name, Is.EqualTo("jockey_malbers_unity"),
-                "The original Malbers renderer must display the pre-skinned Tripo mesh.");
+            Assert.That(renderer.sharedMesh.name, Is.EqualTo("cowboy_no_hat_unity"),
+                "The original Malbers renderer must display the edited no-hat cowboy mesh.");
 
             var originalRig = rider.Find("R_CG");
             Assert.That(originalRig, Is.Not.Null);

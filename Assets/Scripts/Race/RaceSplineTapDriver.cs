@@ -59,6 +59,8 @@ namespace HorseRacing.Race
         [Range(1f, 2.5f)] public float overdriveSpeedMultiplier = 1.6f;
         [Tooltip("Animation playback multiplier at full overdrive, so the legs keep up with the extra ground speed instead of skating.")]
         [Range(1f, 2f)] public float overdriveAnimationSpeedMultiplier = 1.35f;
+        [Tooltip("Share of the overdrive bonus that keeps accruing above the full overdrive rate, with diminishing returns. 0 restores the hard cap, which reads as a speed wall to anyone running faster than that rate.")]
+        [Range(0f, 1f)] public float overdriveTailStrength = 0.45f;
 
         [Header("Finish run-out")]
         [Tooltip("Seconds the horse keeps travelling past the winning post while easing down through the gaits. 0 stops dead on the line.")]
@@ -179,24 +181,45 @@ namespace HorseRacing.Race
         public float TapsPerSecond => _effortModel.TapsPerSecond;
 
         /// <summary>0 at the top-gait tap rate, 1 once the player hits the full overdrive rate.</summary>
-        public float Overdrive => CalculateOverdrive();
+        public float Overdrive => Mathf.Clamp01(MeasureOverdrivePace());
 
         public float EstimatedBestTimeSeconds => ActiveRaceDistance /
             Mathf.Max(0.01f, sprintMetersPerSecond * courseSpeedMultiplier * MaxOverdriveMultiplier);
 
-        float MaxOverdriveMultiplier => enableOverdrive ? Mathf.Max(1f, overdriveSpeedMultiplier) : 1f;
+        /// <summary>
+        /// How far past the full overdrive rate the pace estimate still climbs. Pace has
+        /// to be tracked beyond that rate or the tail below has nothing left to read.
+        /// </summary>
+        const float TrackedOverdrivePace = 2.5f;
+
+        /// <summary>
+        /// Ceiling on how much the animation is sped up. The legs can only stretch so far
+        /// before the clip reads as fast-forwarded film rather than a horse extending.
+        /// </summary>
+        const float MaxAnimationOverdriveResponse = 1.15f;
+
+        float MaxOverdriveMultiplier => OverdriveTravelMultiplier(TrackedOverdrivePace);
+
+        float OverdriveRateSpan => Mathf.Max(0.01f,
+            Mathf.Max(tapsPerSecondForMax + 0.01f, tapsPerSecondForFullOverdrive) -
+            Mathf.Max(0.1f, tapsPerSecondForMax));
 
         float DriveCeiling => enableOverdrive
-            ? Mathf.Max(1f, tapsPerSecondForFullOverdrive / Mathf.Max(0.1f, tapsPerSecondForMax))
+            ? Mathf.Max(1f, (Mathf.Max(0.1f, tapsPerSecondForMax) +
+                             OverdriveRateSpan * TrackedOverdrivePace) /
+                            Mathf.Max(0.1f, tapsPerSecondForMax))
             : 1f;
 
-        float CalculateOverdrive()
+        /// <summary>
+        /// Pace above the top-gait rate, measured in full-overdrive spans. 1 is the full
+        /// overdrive rate; it deliberately keeps rising past that.
+        /// </summary>
+        float MeasureOverdrivePace()
         {
             if (!enableOverdrive) return 0f;
 
             var lower = Mathf.Max(0.1f, tapsPerSecondForMax);
-            var upper = Mathf.Max(lower + 0.01f, tapsPerSecondForFullOverdrive);
-            return Mathf.Clamp01((_effortModel.TapsPerSecond - lower) / (upper - lower));
+            return Mathf.Max(0f, (_effortModel.TapsPerSecond - lower) / OverdriveRateSpan);
         }
 
         public void SetRaceInputEnabled(bool enabled)
@@ -236,6 +259,7 @@ namespace HorseRacing.Race
                 tapsPerSecondForMax + 0.1f, tapsPerSecondForFullOverdrive);
             overdriveSpeedMultiplier = Mathf.Clamp(overdriveSpeedMultiplier, 1f, 2.5f);
             overdriveAnimationSpeedMultiplier = Mathf.Clamp(overdriveAnimationSpeedMultiplier, 1f, 2f);
+            overdriveTailStrength = Mathf.Clamp01(overdriveTailStrength);
             finishRunOutSeconds = Mathf.Max(0f, finishRunOutSeconds);
             accelSmoothTime = Mathf.Max(0f, accelSmoothTime);
             coastSmoothTime = Mathf.Max(0f, coastSmoothTime);
@@ -516,8 +540,7 @@ namespace HorseRacing.Race
 
             _effortModel.Tick(Time.time, Time.deltaTime, tapWindow, tapsPerSecondForMax,
                 accelSmoothTime, coastSmoothTime, DriveCeiling);
-            _gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
-                walkAt, trotAt, canterAt, gallopAt, sprintAt, gaitHysteresis);
+            _gait = SelectRequestedGait();
             _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
                 _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
                 canterMetersPerSecond, gallopMetersPerSecond, sprintMetersPerSecond);
@@ -595,9 +618,7 @@ namespace HorseRacing.Race
             var nativeDistance = useAnimationRootMotionDistance ? _rootMotion.Consume() : 0f;
             if (!useAnimationRootMotionDistance)
                 _rootMotion.Reset();
-            var fallbackDistance = _travelSpeed.Step(_gait, deltaTime,
-                walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
-                gallopMetersPerSecond, sprintMetersPerSecond,
+            var fallbackDistance = _travelSpeed.StepToTarget(CurrentTargetSpeed(), deltaTime,
                 travelAcceleration, travelDeceleration);
 
             // Some horse packs use true root motion, while this preferred horse's
@@ -608,10 +629,11 @@ namespace HorseRacing.Race
             if (nativeDistance > 0.00001f)
                 _travelSpeed.FollowNative(distance, deltaTime);
 
-            var overdrive = CalculateOverdrive();
-            distance *= courseSpeedMultiplier * OverdriveTravelMultiplier(overdrive);
-            ApplyOverdriveAnimationSpeed(overdrive);
+            var overdrivePace = MeasureOverdrivePace();
+            distance *= courseSpeedMultiplier * OverdriveTravelMultiplier(overdrivePace);
+            ApplyOverdriveAnimationSpeed(overdrivePace);
 
+            _gait = SelectRequestedGait();
             _animationGait = GaitTravelSpeedModel.SelectAnimationGait(
                 _gait, _travelSpeed.Speed, walkMetersPerSecond, trotMetersPerSecond,
                 canterMetersPerSecond, gallopMetersPerSecond, sprintMetersPerSecond);
@@ -626,27 +648,67 @@ namespace HorseRacing.Race
                 CompleteRace();
         }
 
+        /// <summary>
+        /// Ground speed the current effort asks for. Reading it from effort rather than
+        /// from the selected gait is what keeps every extra tap worth something.
+        /// </summary>
+        float CurrentTargetSpeed() => GaitTravelSpeedModel.TargetSpeedForEffort(
+            _effortModel.Effort, walkAt, trotAt, canterAt, gallopAt, sprintAt,
+            walkMetersPerSecond, trotMetersPerSecond, canterMetersPerSecond,
+            gallopMetersPerSecond, sprintMetersPerSecond);
+
+        int SelectRequestedGait()
+        {
+            var gait = TapEffortModel.SelectGait(_effortModel.Effort, _gait,
+                walkAt, trotAt, canterAt, gallopAt, sprintAt, gaitHysteresis);
+
+            // Effort inside the hysteresis band commands no ground speed at all, so the
+            // legs must not keep cycling in place once the horse has actually stopped.
+            if (gait > 0 && _travelSpeed.Speed <= 0.001f && CurrentTargetSpeed() <= 0f)
+                gait = 0;
+
+            return gait;
+        }
+
         void CompleteRace()
+        {
+            BeginRunOut();
+            onRaceFinished?.Invoke();
+        }
+
+        /// <summary>
+        /// Ends this horse's race without a finish of its own. The field is pulled up the
+        /// moment the first horse crosses the line, and easing down beats freezing
+        /// mid-stride.
+        /// </summary>
+        public void PullUpAndStopRacing()
+        {
+            if (!_ready) return;
+
+            if (!IsFinished && !_runningOut)
+                BeginRunOut();
+
+            SetRaceInputEnabled(false);
+        }
+
+        void BeginRunOut()
         {
             // Speed carried over the line, in track metres per second, so the pull-up
             // starts from whatever pace the player actually finished on.
             _runOutStartSpeed = _travelSpeed.Speed * courseSpeedMultiplier *
-                OverdriveTravelMultiplier(CalculateOverdrive());
+                OverdriveTravelMultiplier(MeasureOverdrivePace());
             _runOutTimer = 0f;
             _runningOut = finishRunOutSeconds > 0.01f && _runOutStartSpeed > 0.1f;
 
             _effortModel.Reset();
             _rootMotion.Reset();
 
-            if (!_runningOut)
-            {
-                _gait = 0;
-                _animationGait = 0;
-                _travelSpeed.Reset();
-                DriveGait(0);
-            }
+            if (_runningOut) return;
 
-            onRaceFinished?.Invoke();
+            _gait = 0;
+            _animationGait = 0;
+            _travelSpeed.Reset();
+            DriveGait(0);
         }
 
         /// <summary>
@@ -689,21 +751,34 @@ namespace HorseRacing.Race
             DriveGait(0);
         }
 
-        float OverdriveTravelMultiplier(float overdrive)
+        float OverdriveTravelMultiplier(float overdrivePace)
         {
             return enableOverdrive
-                ? 1f + Mathf.Clamp01(overdrive) * (Mathf.Max(1f, overdriveSpeedMultiplier) - 1f)
+                ? 1f + OverdriveResponse(overdrivePace) *
+                  (Mathf.Max(1f, overdriveSpeedMultiplier) - 1f)
                 : 1f;
         }
 
-        void ApplyOverdriveAnimationSpeed(float overdrive)
+        /// <summary>
+        /// Rises linearly to 1 at the full overdrive rate, then keeps climbing slowly
+        /// instead of stopping. A runner already past that rate used to gain nothing at
+        /// all for going faster, which is the wall players describe hitting on the panel.
+        /// </summary>
+        float OverdriveResponse(float overdrivePace)
+        {
+            if (overdrivePace <= 1f) return Mathf.Max(0f, overdrivePace);
+            return 1f + Mathf.Log(overdrivePace) * Mathf.Clamp01(overdriveTailStrength);
+        }
+
+        void ApplyOverdriveAnimationSpeed(float overdrivePace)
         {
             if (!animal) return;
 
             // Only the top two gaits get sped up. Anything slower would look like the
             // horse is scrabbling rather than extending.
             var wanted = enableOverdrive && _animationGait >= 4
-                ? 1f + Mathf.Clamp01(overdrive) * (Mathf.Max(1f, overdriveAnimationSpeedMultiplier) - 1f)
+                ? 1f + Mathf.Min(OverdriveResponse(overdrivePace), MaxAnimationOverdriveResponse) *
+                  (Mathf.Max(1f, overdriveAnimationSpeedMultiplier) - 1f)
                 : 1f;
 
             if (Mathf.Abs(wanted - _appliedAnimatorSpeed) < 0.01f) return;

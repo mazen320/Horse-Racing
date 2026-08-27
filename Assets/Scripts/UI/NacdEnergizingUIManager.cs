@@ -103,8 +103,6 @@ namespace HorseRacing.UI
         [SerializeField] string leaderboardEmptyTime = "—";
 
         [Header("Results timing")]
-        [Tooltip("Longest wait for the horses to finish pulling up before the verdict appears.")]
-        [SerializeField] float runOutWaitSeconds = 3.6f;
         [SerializeField] float verdictHoldSeconds = 1.1f;
         [SerializeField] float resultsIntroDuration = 0.65f;
         [SerializeField] Ease resultsIntroEase = Ease.OutCubic;
@@ -518,24 +516,30 @@ namespace HorseRacing.UI
             if (pill)
                 pill.gameObject.SetActive(false);
 
-            UpdatePlayerTimePill(player1TimePill, player1TimeText, _player1Time);
-            UpdatePlayerTimePill(player2TimePill, player2TimeText,
-                Solo || !raceDriverP2 ? -1f : _player2Time);
+            UpdatePlayerTimePill(player1TimePill, player1TimeText, _player1Time, true);
+            UpdatePlayerTimePill(player2TimePill, player2TimeText, _player2Time,
+                !Solo && raceDriverP2);
         }
 
-        void UpdatePlayerTimePill(RectTransform pill, TMP_Text label, float seconds)
+        /// <summary>
+        /// A rider who was still running when the winner crossed has no time, so their
+        /// pill shows the empty glyph rather than vanishing and unbalancing the header.
+        /// </summary>
+        void UpdatePlayerTimePill(RectTransform pill, TMP_Text label, float seconds, bool raced)
         {
             if (!pill)
                 return;
 
-            if (seconds < 0f)
+            if (!raced)
             {
                 pill.gameObject.SetActive(false);
                 return;
             }
 
             if (label)
-                label.text = FormatTime(seconds, timerMonospaceEm);
+                label.text = seconds >= 0f
+                    ? FormatTime(seconds, timerMonospaceEm)
+                    : leaderboardEmptyTime;
 
             pill.gameObject.SetActive(true);
             pill.DOKill();
@@ -690,7 +694,7 @@ namespace HorseRacing.UI
 
             _player1Time = Time.time - _raceStartTime;
             raceDriver?.SetRaceInputEnabled(false);
-            TryBeginResults();
+            BeginResults();
         }
 
         void OnDriver2RaceFinished()
@@ -700,41 +704,47 @@ namespace HorseRacing.UI
 
             _player2Time = Time.time - _raceStartTime;
             raceDriverP2?.SetRaceInputEnabled(false);
-            TryBeginResults();
+            BeginResults();
         }
 
-        void TryBeginResults()
+        /// <summary>
+        /// The first horse over the line ends the race. Holding the result back until
+        /// everyone had finished left the winner watching their own screen do nothing and
+        /// the rider behind still running for a race that was already decided.
+        /// </summary>
+        void BeginResults()
         {
             if (_state != FlowState.Racing)
                 return;
 
-            if (!Solo && raceDriverP2)
-            {
-                if (_player1Time < 0f || _player2Time < 0f)
-                    return;
-            }
-            else if (_player1Time < 0f)
-            {
-                return;
-            }
-
-            _raceEndTime = Solo || !raceDriverP2
-                ? _player1Time
-                : Mathf.Max(_player1Time, _player2Time);
-
+            _raceEndTime = WinningTime();
+            PullUpUnfinishedDrivers();
             RefreshRaceTimer();
             StopFlow();
             _flowCoroutine = StartCoroutine(ShowResultsSequence());
+        }
+
+        /// <summary>Time on the line, which is now the only finish time in the race.</summary>
+        float WinningTime()
+        {
+            if (_player1Time < 0f) return _player2Time;
+            if (_player2Time < 0f) return _player1Time;
+            return Mathf.Min(_player1Time, _player2Time);
+        }
+
+        void PullUpUnfinishedDrivers()
+        {
+            if (_player1Time < 0f && raceDriver)
+                raceDriver.PullUpAndStopRacing();
+
+            if (!Solo && _player2Time < 0f && raceDriverP2)
+                raceDriverP2.PullUpAndStopRacing();
         }
 
         IEnumerator ShowResultsSequence()
         {
             ApplyState(FlowState.Results);
             SubmitLeaderboardTimes();
-
-            // Let the horses gallop out and ease down before the screen calls it, so the
-            // race reads as finished rather than switched off.
-            yield return WaitForRunOut();
 
             ApplyVerdicts();
             ShowPlayerTimePills();
@@ -762,23 +772,6 @@ namespace HorseRacing.UI
                 remaining -= Time.unscaledDeltaTime;
                 yield return null;
             }
-        }
-
-        IEnumerator WaitForRunOut()
-        {
-            var elapsed = 0f;
-            var limit = Mathf.Max(0f, runOutWaitSeconds);
-            while (elapsed < limit && AnyDriverRunningOut())
-            {
-                elapsed += Time.deltaTime;
-                yield return null;
-            }
-        }
-
-        bool AnyDriverRunningOut()
-        {
-            if (raceDriver && raceDriver.IsRunningOut) return true;
-            return !Solo && raceDriverP2 && raceDriverP2.IsRunningOut;
         }
 
         void LoadLeaderboard()

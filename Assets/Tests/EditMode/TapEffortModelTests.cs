@@ -79,7 +79,7 @@ namespace HorseRacing.Race.Tests
             var model = new TapEffortModel();
             for (var i = 0; i < 40; i++) model.RegisterTap(i * 0.02f);
 
-            model.Tick(1f, 1f, 1f, 2f, 0f, 0f, 3f);
+            model.Tick(39 * 0.02f, 1f, 1f, 2f, 0f, 0f, 3f);
 
             Assert.That(model.Drive, Is.EqualTo(3f).Within(0.0001f));
         }
@@ -94,6 +94,51 @@ namespace HorseRacing.Race.Tests
 
             Assert.That(effort, Is.EqualTo(1f));
             Assert.That(model.Drive, Is.EqualTo(1f).Within(0.0001f));
+        }
+
+        [Test]
+        public void Pace_SeparatesRatesThatShareATapCountPerWindow()
+        {
+            // Both runners land 4 taps inside the one-second window, so a count-per-window
+            // reading calls them identical. Their stride rates are nowhere near identical.
+            var slower = PaceOf(0.33f, 4);
+            var faster = PaceOf(0.26f, 4);
+
+            Assert.That(slower.TapsPerSecond, Is.EqualTo(3.03f).Within(0.02f));
+            Assert.That(faster.TapsPerSecond, Is.EqualTo(3.85f).Within(0.02f));
+            Assert.That(faster.TapsPerSecond, Is.GreaterThan(slower.TapsPerSecond));
+        }
+
+        [Test]
+        public void Pace_KeepsRisingWellPastTheTopGaitRate()
+        {
+            var atTopGait = PaceOf(1f / 2.2f, 6);
+            var wayPastIt = PaceOf(1f / 6.5f, 6);
+
+            Assert.That(atTopGait.TapsPerSecond, Is.EqualTo(2.2f).Within(0.05f));
+            Assert.That(wayPastIt.TapsPerSecond, Is.EqualTo(6.5f).Within(0.05f));
+        }
+
+        [Test]
+        public void Pace_FallsWhileTheRunnerIsSlowingWithoutWaitingForTheWindow()
+        {
+            var model = PaceOf(0.2f, 5);
+            var quick = model.TapsPerSecond;
+
+            // No new tap for half a second cannot still read as five taps a second.
+            model.Tick(1.3f, 0.5f, 1f, 2.2f, 0f, 0f, 4f);
+
+            Assert.That(model.TapsPerSecond, Is.LessThan(quick));
+            Assert.That(model.TapsPerSecond, Is.EqualTo(2f).Within(0.05f));
+        }
+
+        /// <summary>Taps at a fixed interval, then reads the pace on the last tap.</summary>
+        static TapEffortModel PaceOf(float interval, int taps)
+        {
+            var model = new TapEffortModel();
+            for (var i = 0; i < taps; i++) model.RegisterTap(i * interval);
+            model.Tick((taps - 1) * interval, interval, 1f, 2.2f, 0f, 0f, 4f);
+            return model;
         }
 
         [Test]
