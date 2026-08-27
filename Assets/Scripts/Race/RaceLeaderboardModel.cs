@@ -145,9 +145,30 @@ namespace HorseRacing.Race
 
         public static string NormalizeName(string name)
         {
-            return string.IsNullOrWhiteSpace(name)
-                ? FallbackName
-                : name.Trim().ToUpperInvariant();
+            if (string.IsNullOrWhiteSpace(name))
+                return FallbackName;
+
+            var trimmed = name.Trim();
+            // Arabic has no case; uppercasing Latin-only keeps English nameplates consistent.
+            return ContainsArabicScript(trimmed) ? trimmed : trimmed.ToUpperInvariant();
+        }
+
+        public static bool ContainsArabicScript(string value)
+        {
+            if (string.IsNullOrEmpty(value))
+                return false;
+
+            foreach (var ch in value)
+            {
+                if (ch is >= '\u0600' and <= '\u06FF' // Arabic
+                    or >= '\u0750' and <= '\u077F' // Arabic Supplement
+                    or >= '\u08A0' and <= '\u08FF' // Arabic Extended-A
+                    or >= '\uFB50' and <= '\uFDFF' // Presentation Forms-A
+                    or >= '\uFE70' and <= '\uFEFF') // Presentation Forms-B
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>Race clock format shared by the HUD timer and the board: 0:00.0</summary>

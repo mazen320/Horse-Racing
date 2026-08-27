@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using DG.Tweening;
 using HorseRacing.Race;
+using RTLTMPro;
 using TMPro;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -127,6 +128,9 @@ namespace HorseRacing.UI
         [SerializeField] RectTransform player2Plate;
         [SerializeField] float underlinePadding = 26f;
         [SerializeField] float platePadding = 104f;
+        [Tooltip("Used when a name contains Arabic so joined letters render correctly.")]
+        [SerializeField] TMP_FontAsset arabicNameFont;
+        [SerializeField] TMP_FontAsset latinNameFont;
 
         [Header("Player names")]
         [SerializeField] string player1Name = "PLAYER 1";
@@ -930,8 +934,29 @@ namespace HorseRacing.UI
         {
             if (!nameText) return;
 
-            var label = string.IsNullOrWhiteSpace(name) ? "PLAYER" : name.Trim().ToUpperInvariant();
-            nameText.text = $"{label}{verdictSeparator}{verdict}";
+            var trimmed = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            var useArabic = trimmed != null &&
+                            (RaceLeaderboardModel.ContainsArabicScript(trimmed) || TextUtils.IsRTLInput(trimmed));
+            var font = useArabic
+                ? (arabicNameFont ? arabicNameFont : nameText.font)
+                : (latinNameFont ? latinNameFont : nameText.font);
+            if (font && nameText.font != font)
+            {
+                nameText.font = font;
+                nameText.fontSharedMaterial = font.material;
+            }
+
+            nameText.fontStyle = useArabic ? FontStyles.Normal : FontStyles.Bold;
+            nameText.isRightToLeftText = false;
+
+            if (trimmed == null)
+                nameText.text = $"PLAYER{verdictSeparator}{verdict}";
+            else if (useArabic)
+                // LTR mark keeps " — WON" from jumping to the wrong side of shaped Arabic.
+                nameText.text = $"{ShapeArabicForTmp(trimmed)}\u200E{verdictSeparator}{verdict}";
+            else
+                nameText.text = $"{trimmed.ToUpperInvariant()}{verdictSeparator}{verdict}";
+
             FitNameplate(nameText, underline, plate);
 
             var highlight = underline ? underline.GetComponent<Image>() : null;
@@ -1008,7 +1033,7 @@ namespace HorseRacing.UI
                 if (row.rankText)
                     row.rankText.text = $"{i + 1}";
                 if (row.nameText)
-                    row.nameText.text = hasEntry ? entries[i].name : "—";
+                    ApplyNameToLabel(row.nameText, hasEntry ? entries[i].name : null, "—");
                 if (row.timeText)
                 {
                     row.timeText.text = hasEntry
@@ -1163,9 +1188,122 @@ namespace HorseRacing.UI
         void ApplyNameTexts()
         {
             if (player1NameText)
-                player1NameText.text = string.IsNullOrWhiteSpace(player1Name) ? "PLAYER 1" : player1Name.ToUpperInvariant();
+                ApplyNameToLabel(player1NameText, player1Name, "PLAYER 1");
             if (player2NameText)
-                player2NameText.text = string.IsNullOrWhiteSpace(player2Name) ? "PLAYER 2" : player2Name.ToUpperInvariant();
+                ApplyNameToLabel(player2NameText, player2Name, "PLAYER 2");
+        }
+
+        void ApplyNameToLabel(TMP_Text label, string name, string emptyFallback)
+        {
+            if (!label) return;
+
+            var trimmed = string.IsNullOrWhiteSpace(name) ? null : name.Trim();
+            var useArabic = trimmed != null &&
+                            (RaceLeaderboardModel.ContainsArabicScript(trimmed) || TextUtils.IsRTLInput(trimmed));
+            var font = useArabic
+                ? (arabicNameFont ? arabicNameFont : label.font)
+                : (latinNameFont ? latinNameFont : label.font);
+            if (font && label.font != font)
+            {
+                label.font = font;
+                label.fontSharedMaterial = font.material;
+            }
+
+            // Bold faux-weight breaks Arabic joining; Antipol Bold asset covers Latin.
+            label.fontStyle = useArabic ? FontStyles.Normal : FontStyles.Bold;
+            label.isRightToLeftText = false;
+
+            if (trimmed == null)
+            {
+                label.text = emptyFallback;
+                return;
+            }
+
+            // Arabic: FixRTL only (no Reverse) + LTR mesh — verified correct for this TMP build.
+            label.text = useArabic ? ShapeArabicForTmp(trimmed) : trimmed.ToUpperInvariant();
+        }
+
+        /// <summary>
+        /// Shapes Arabic for TextMeshPro: contextual forms, keep mesh LTR (do not Reverse).
+        /// </summary>
+        static string ShapeArabicForTmp(string input)
+        {
+            if (string.IsNullOrEmpty(input))
+                return input;
+
+            // Shape each Arabic run separately and keep run order as typed, so a mixed name like
+            // "Ahmad فاطمة" keeps the Latin part on the left instead of swapping sides.
+            var result = new System.Text.StringBuilder(input.Length + 8);
+            var runStart = 0;
+            var runIsArabic = IsArabicLetter(input[0]);
+
+            for (var i = 1; i <= input.Length; i++)
+            {
+                var atEnd = i == input.Length;
+                if (!atEnd)
+                {
+                    var c = input[i];
+                    if (IsDirectionNeutral(c))
+                        continue;
+                    if (IsArabicLetter(c) == runIsArabic)
+                        continue;
+                }
+
+                AppendShapedRun(result, input.Substring(runStart, i - runStart), runIsArabic);
+
+                if (atEnd)
+                    break;
+
+                runStart = i;
+                runIsArabic = IsArabicLetter(input[i]);
+            }
+
+            return result.ToString();
+        }
+
+        static void AppendShapedRun(System.Text.StringBuilder target, string run, bool arabic)
+        {
+            if (!arabic)
+            {
+                target.Append(run);
+                return;
+            }
+
+            var shaped = new FastStringBuilder(RTLSupport.DefaultBufferSize);
+            RTLSupport.FixRTL(
+                run,
+                shaped,
+                farsi: false,
+                fixTextTags: false,
+                preserveNumbers: true,
+                fixYah: true);
+            target.Append(shaped.ToString());
+        }
+
+        static bool IsArabicLetter(char c) =>
+            (c >= '\u0600' && c <= '\u06FF') ||
+            (c >= '\u0750' && c <= '\u077F') ||
+            (c >= '\u08A0' && c <= '\u08FF') ||
+            (c >= '\uFB50' && c <= '\uFDFF') ||
+            (c >= '\uFE70' && c <= '\uFEFF');
+
+        /// <summary>Spaces and punctuation carry no direction, so they stay with the current run.</summary>
+        static bool IsDirectionNeutral(char c) =>
+            !IsArabicLetter(c) && !char.IsLetterOrDigit(c);
+
+        /// <summary>
+        /// Latin names stay uppercase for brand look; Arabic is shaped for TMP joining.
+        /// </summary>
+        static string FormatNameForDisplay(string name, string emptyFallback)
+        {
+            if (string.IsNullOrWhiteSpace(name))
+                return emptyFallback;
+
+            var trimmed = name.Trim();
+            if (!RaceLeaderboardModel.ContainsArabicScript(trimmed) && !TextUtils.IsRTLInput(trimmed))
+                return trimmed.ToUpperInvariant();
+
+            return ShapeArabicForTmp(trimmed);
         }
 
         void FitNameplatesIfActive()

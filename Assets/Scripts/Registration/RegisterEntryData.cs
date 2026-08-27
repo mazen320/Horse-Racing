@@ -43,7 +43,13 @@ namespace HorseRacing.Registration
 
         public string GetCsv()
         {
-            return $"{time},{timeUTC},Player{userIndex},{name},{email},{moblieNumber}";
+            return string.Join(",",
+                RegistrationCsvUtil.EscapeField(time),
+                timeUTC.ToString(),
+                $"Player{userIndex}",
+                RegistrationCsvUtil.EscapeField(name),
+                RegistrationCsvUtil.EscapeField(email),
+                RegistrationCsvUtil.EscapeField(moblieNumber));
         }
     }
 

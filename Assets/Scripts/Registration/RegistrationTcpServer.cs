@@ -26,8 +26,12 @@ namespace HorseRacing.Registration
         [SerializeField] int discoveryPort = 3738;
         [SerializeField] float broadcastIntervalMinutes = 5f;
         [SerializeField] bool logTraffic;
+        [SerializeField] int clientPingTimeoutSeconds = 15;
+        [SerializeField] int socketSendTimeoutMs = 3000;
+        [SerializeField] int socketReceiveTimeoutMs = 65000;
 
         readonly ConcurrentQueue<Action> _mainThread = new();
+        readonly ConcurrentQueue<ClientState> _pendingRemovals = new();
         readonly Dictionary<string, ClientState> _clients = new();
         readonly object _clientLock = new();
 
@@ -35,6 +39,7 @@ namespace HorseRacing.Registration
         Thread _acceptThread;
         UdpClient _discovery;
         Timer _broadcastTimer;
+        Timer _maintenanceTimer;
         volatile bool _running;
         bool _registered;
         RegisterEntryData _lastRegistration = new();
@@ -54,15 +59,18 @@ namespace HorseRacing.Registration
             if (autoStart)
                 StartServer();
 
-            InvokeRepeating(nameof(SendKeepAlive), 1f, 1f);
+            _maintenanceTimer = new Timer(_ => MaintenanceTick(), null, 1000, 1000);
         }
 
-        void SendKeepAlive() => SendPinging();
+        void SendKeepAlive() => SendKeepAliveInternal();
 
         void OnDestroy() => StopServer();
 
         void Update()
         {
+            while (_pendingRemovals.TryDequeue(out var staleClient))
+                RemoveClient(staleClient);
+
             while (_mainThread.TryDequeue(out var action))
                 action?.Invoke();
         }
@@ -93,6 +101,9 @@ namespace HorseRacing.Registration
         public void StopServer()
         {
             _running = false;
+
+            _maintenanceTimer?.Dispose();
+            _maintenanceTimer = null;
 
             _broadcastTimer?.Dispose();
             _broadcastTimer = null;
@@ -126,27 +137,109 @@ namespace HorseRacing.Registration
             if (!_registered || _lastRegistration.entries == null || _lastRegistration.entries.Count == 0)
                 return;
 
-            try
-            {
-                var ack = _lastRegistration;
-                ack.registered = true;
-                ack.SetTime();
-                var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ack));
-                WriteMessage(client.Stream, bytes);
+            var ack = _lastRegistration;
+            ack.registered = true;
+            ack.SetTime();
+            var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(ack));
 
-                if (logTraffic)
-                    Debug.Log($"[RegistrationTcpServer] Re-synced registration to {client.Key}");
-            }
-            catch (Exception ex)
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                if (logTraffic)
-                    Debug.LogWarning($"[RegistrationTcpServer] Registration sync failed ({client.Key}): {ex.Message}");
-            }
+                if (SendTo(client, bytes) && logTraffic)
+                    Debug.Log($"[RegistrationTcpServer] Re-synced registration to {client.Key}");
+            });
         }
 
         public void SendPinging()
         {
-            Broadcast(new RegisterEntryData { pinging = true });
+            SendKeepAliveInternal();
+        }
+
+        void MaintenanceTick()
+        {
+            if (!_running)
+                return;
+
+            var timedOut = new List<ClientState>();
+            lock (_clientLock)
+            {
+                foreach (var client in _clients.Values)
+                {
+                    client.PingTimeout--;
+                    if (client.PingTimeout <= 0)
+                        timedOut.Add(client);
+                }
+            }
+
+            foreach (var client in timedOut)
+                QueueRemoveClient(client);
+
+            SendKeepAliveInternal();
+        }
+
+        void SendKeepAliveInternal()
+        {
+            if (!_running)
+                return;
+
+            var pingBytes = Encoding.UTF8.GetBytes(
+                JsonConvert.SerializeObject(new PingData
+                {
+                    validCheck = PingValidCheck,
+                    msg = ServerPingMsg
+                }));
+            var appBytes = Encoding.UTF8.GetBytes(
+                JsonConvert.SerializeObject(new RegisterEntryData { pinging = true }));
+
+            foreach (var client in SnapshotClients())
+            {
+                if (SendTo(client, pingBytes))
+                    SendTo(client, appBytes);
+            }
+        }
+
+        void QueueRemoveClient(ClientState client)
+        {
+            if (client == null)
+                return;
+
+            _pendingRemovals.Enqueue(client);
+        }
+
+        /// <summary>
+        /// Single write path for every sender. Serializes frames per client and evicts a client
+        /// whose socket blocks or errors, so a dead tablet can never stall the caller twice.
+        /// </summary>
+        bool SendTo(ClientState client, byte[] payload)
+        {
+            if (client == null)
+                return false;
+
+            try
+            {
+                if (!client.Tcp.Connected)
+                {
+                    QueueRemoveClient(client);
+                    return false;
+                }
+
+                lock (client.WriteLock)
+                    WriteMessage(client.Stream, payload);
+
+                return true;
+            }
+            catch (Exception ex)
+            {
+                if (logTraffic)
+                    Debug.LogWarning($"[RegistrationTcpServer] Send failed ({client.Key}): {ex.Message}");
+                QueueRemoveClient(client);
+                return false;
+            }
+        }
+
+        List<ClientState> SnapshotClients()
+        {
+            lock (_clientLock)
+                return new List<ClientState>(_clients.Values);
         }
 
         public void BroadcastRaceStarted(long raceStartUtcTicks)
@@ -219,11 +312,17 @@ namespace HorseRacing.Registration
                 try
                 {
                     var tcpClient = _listener.AcceptTcpClient();
+                    TcpSocketUtil.ConfigureAcceptedClient(tcpClient, socketSendTimeoutMs, socketReceiveTimeoutMs);
                     var stream = tcpClient.GetStream();
+                    stream.ReadTimeout = socketReceiveTimeoutMs;
+                    stream.WriteTimeout = socketSendTimeoutMs;
                     var endpoint = tcpClient.Client.RemoteEndPoint as IPEndPoint;
                     var key = endpoint != null ? $"{endpoint.Address}:{endpoint.Port}" : Guid.NewGuid().ToString();
 
-                    var state = new ClientState(tcpClient, stream, key);
+                    var state = new ClientState(tcpClient, stream, key)
+                    {
+                        PingTimeout = clientPingTimeoutSeconds
+                    };
                     lock (_clientLock)
                         _clients[key] = state;
 
@@ -257,9 +356,26 @@ namespace HorseRacing.Registration
             {
                 while (_running && client.Tcp.Connected)
                 {
-                    var payload = ReadMessage(client.Stream);
+                    byte[] payload;
+                    try
+                    {
+                        payload = ReadMessage(client.Stream);
+                    }
+                    catch (IOException)
+                    {
+                        // Receive timeout while idle — keep listening until ping timeout evicts the client.
+                        continue;
+                    }
+
                     if (payload == null)
                         break;
+
+                    lock (_clientLock)
+                    {
+                        if (_clients.ContainsKey(client.Key))
+                            _clients[client.Key].PingTimeout = clientPingTimeoutSeconds;
+                    }
+
                     HandlePayload(client, payload);
                 }
             }
@@ -283,26 +399,17 @@ namespace HorseRacing.Registration
                 lock (_clientLock)
                 {
                     if (_clients.ContainsKey(client.Key))
-                        _clients[client.Key].PingTimeout = 5;
+                        _clients[client.Key].PingTimeout = clientPingTimeoutSeconds;
                 }
 
                 // Registration tablet (EasyTcp) requires ServerToClientPing or it drops after ~5s.
-                try
-                {
-                    var reply = Encoding.UTF8.GetBytes(
-                        JsonConvert.SerializeObject(new PingData
-                        {
-                            validCheck = PingValidCheck,
-                            msg = ServerPingMsg
-                        }));
-                    WriteMessage(client.Stream, reply);
-                }
-                catch (Exception ex)
-                {
-                    if (logTraffic)
-                        Debug.LogWarning($"[RegistrationTcpServer] Ping reply failed ({client.Key}): {ex.Message}");
-                }
-
+                var reply = Encoding.UTF8.GetBytes(
+                    JsonConvert.SerializeObject(new PingData
+                    {
+                        validCheck = PingValidCheck,
+                        msg = ServerPingMsg
+                    }));
+                SendTo(client, reply);
                 return;
             }
 
@@ -387,6 +494,10 @@ namespace HorseRacing.Registration
 
                 if (logTraffic)
                     Debug.Log($"[RegistrationTcpServer] Registered {data.entries.Count} player(s)");
+
+                if (data.start)
+                    StartCommandReceived?.Invoke();
+
                 return;
             }
 
@@ -406,14 +517,17 @@ namespace HorseRacing.Registration
 
         void RemoveClient(ClientState client)
         {
-            client.Dispose();
-            var removed = false;
+            if (client == null)
+                return;
 
+            var removed = false;
             lock (_clientLock)
                 removed = _clients.Remove(client.Key);
 
             if (!removed)
                 return;
+
+            client.Dispose();
 
             EnqueueMain(() =>
             {
@@ -426,22 +540,17 @@ namespace HorseRacing.Registration
         void Broadcast(RegisterEntryData data)
         {
             var bytes = Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(data));
-            lock (_clientLock)
+            var snapshot = SnapshotClients();
+            if (snapshot.Count == 0)
+                return;
+
+            // Writes block until the socket send timeout, so never do them on the render thread:
+            // a tablet that died during idle would otherwise stall the game for seconds.
+            ThreadPool.QueueUserWorkItem(_ =>
             {
-                foreach (var client in _clients.Values)
-                {
-                    try
-                    {
-                        if (client.Tcp.Connected)
-                            WriteMessage(client.Stream, bytes);
-                    }
-                    catch (Exception ex)
-                    {
-                        if (logTraffic)
-                            Debug.LogWarning($"[RegistrationTcpServer] Send failed ({client.Key}): {ex.Message}");
-                    }
-                }
-            }
+                foreach (var client in snapshot)
+                    SendTo(client, bytes);
+            });
         }
 
         void EnqueueMain(Action action) => _mainThread.Enqueue(action);
@@ -520,6 +629,9 @@ namespace HorseRacing.Registration
             public NetworkStream Stream { get; }
             public string Key { get; }
             public int PingTimeout = 5;
+
+            /// <summary>Pings, acks and broadcasts come from different threads; frames must not interleave.</summary>
+            public readonly object WriteLock = new();
 
             public void Dispose()
             {

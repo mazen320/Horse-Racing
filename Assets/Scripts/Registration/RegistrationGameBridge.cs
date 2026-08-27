@@ -38,6 +38,7 @@ namespace HorseRacing.Registration
             server.RestartCommandReceived += OnRestart;
             server.EndGameCommandReceived += OnEndGame;
             server.NewRaceCommandReceived += OnNewRace;
+            server.ClientConnectionChanged += OnClientConnectionChanged;
 
             if (uiManager)
                 uiManager.RaceStarted += OnRaceStarted;
@@ -55,6 +56,7 @@ namespace HorseRacing.Registration
             server.RestartCommandReceived -= OnRestart;
             server.EndGameCommandReceived -= OnEndGame;
             server.NewRaceCommandReceived -= OnNewRace;
+            server.ClientConnectionChanged -= OnClientConnectionChanged;
 
             if (uiManager)
             {
@@ -92,7 +94,7 @@ namespace HorseRacing.Registration
             foreach (var entry in data.entries)
             {
                 entry.SetTime();
-                File.AppendAllText(_csvPath, entry.GetCsv() + System.Environment.NewLine);
+                RegistrationCsvUtil.AppendRegistrationRow(_csvPath, entry.GetCsv());
             }
         }
 
@@ -122,6 +124,15 @@ namespace HorseRacing.Registration
         {
             // Same players: reset the field but keep names and go back to the post-register page.
             uiManager?.ApplyTabletNewRace(skipToInstructionsOnRegister);
+        }
+
+        void OnClientConnectionChanged(bool connected)
+        {
+            if (connected || !uiManager)
+                return;
+
+            // Tablet dropped after idle — return PC to attract/idle so it does not stay frozen mid-flow.
+            uiManager.ApplyTabletRestart();
         }
 
         static string FindName(RegisterEntryData data, int userIndex)

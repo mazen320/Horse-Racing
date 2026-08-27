@@ -6,7 +6,8 @@
     "DOTween.Modules",
     "Unity.TextMeshPro",
     "Unity.InputSystem",
-    "UTool"
+    "UTool",
+    "RTLTMPro"
   ],
   "includePlatforms": [],
   "excludePlatforms": [],
