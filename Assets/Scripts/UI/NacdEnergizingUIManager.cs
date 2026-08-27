@@ -101,8 +101,12 @@ namespace HorseRacing.UI
         [Tooltip("How many times the saved board keeps, even though fewer rows are shown.")]
         [SerializeField] int leaderboardCapacity = 10;
         [SerializeField] string leaderboardEmptyTime = "—";
+        [Tooltip("Shown under a nameplate when that rider never reached the line after the winner finished.")]
+        [SerializeField] string dnfLabel = "DNF";
 
         [Header("Results timing")]
+        [Tooltip("After the winner finishes, how long to wait before showing DNF. A later crossing still replaces DNF with a real time.")]
+        [SerializeField] float finishGraceSeconds = 2.5f;
         [SerializeField] float verdictHoldSeconds = 1.1f;
         [SerializeField] float resultsIntroDuration = 0.65f;
         [SerializeField] Ease resultsIntroEase = Ease.OutCubic;
@@ -168,6 +172,9 @@ namespace HorseRacing.UI
 
         /// <summary>Fired when the race clock starts (after countdown), with UTC ticks for tablet sync.</summary>
         public event Action<long> RaceStarted;
+
+        /// <summary>Fired when the winner finishes, with UTC ticks so the tablet can freeze its clock.</summary>
+        public event Action<long> RaceEnded;
 
         bool Solo => playerCount <= 1;
 
@@ -522,8 +529,8 @@ namespace HorseRacing.UI
         }
 
         /// <summary>
-        /// A rider who was still running when the winner crossed has no time, so their
-        /// pill shows the empty glyph rather than vanishing and unbalancing the header.
+        /// A rider who never reached the line after the winner finished shows DNF so the
+        /// header stays balanced and the dash does not look like a missing clock.
         /// </summary>
         void UpdatePlayerTimePill(RectTransform pill, TMP_Text label, float seconds, bool raced)
         {
@@ -539,7 +546,7 @@ namespace HorseRacing.UI
             if (label)
                 label.text = seconds >= 0f
                     ? FormatTime(seconds, timerMonospaceEm)
-                    : leaderboardEmptyTime;
+                    : (string.IsNullOrWhiteSpace(dnfLabel) ? leaderboardEmptyTime : dnfLabel);
 
             pill.gameObject.SetActive(true);
             pill.DOKill();
@@ -580,6 +587,16 @@ namespace HorseRacing.UI
         }
 
         /// <summary>
+        /// Same registered riders — hide the race view behind the menu, re-grid horses,
+        /// keep nameplates, ready for the next Start from the tablet.
+        /// </summary>
+        public void ApplyTabletNewRace(bool showInstructions)
+        {
+            StopFlow();
+            _flowCoroutine = StartCoroutine(ReturnForNewRace(showInstructions));
+        }
+
+        /// <summary>
         /// The start page is a full-screen opaque page, so it goes up first and the grid
         /// reset happens behind it. Re-gridding while the race view is still on screen is
         /// what made the return read as the camera flying back down the course.
@@ -598,6 +615,25 @@ namespace HorseRacing.UI
             _raceStartUtcTicks = 0;
             _player1BoardPosition = 0;
             _player2BoardPosition = 0;
+            PrepareRaceFieldForMenu();
+            _flowCoroutine = null;
+        }
+
+        IEnumerator ReturnForNewRace(bool showInstructions)
+        {
+            ApplyState(showInstructions ? FlowState.InstructionsPage : FlowState.StartPage);
+            yield return WaitSeconds(fadeDuration * 1.35f + pageStagger + 0.05f);
+
+            _player1Time = -1f;
+            _player2Time = -1f;
+            _raceEndTime = -1f;
+            _raceStartUtcTicks = 0;
+            _player1BoardPosition = 0;
+            _player2BoardPosition = 0;
+            _showingVerdict = false;
+            RestoreHighlightColors();
+            ResetNameplateScales();
+            PrepareNameplateLayout();
             PrepareRaceFieldForMenu();
             _flowCoroutine = null;
         }
@@ -689,28 +725,60 @@ namespace HorseRacing.UI
 
         void OnDriver1RaceFinished()
         {
-            if (_state != FlowState.Racing || _player1Time >= 0f)
+            // Still accept a late finish after the winner ended the race — photo finishes
+            // often land a frame or two after BeginResults has already left Racing.
+            if (_player1Time >= 0f)
+                return;
+            if (_state != FlowState.Racing && _state != FlowState.Results)
                 return;
 
-            _player1Time = Time.time - _raceStartTime;
+            _player1Time = GetRaceElapsed();
             raceDriver?.SetRaceInputEnabled(false);
-            BeginResults();
+
+            if (_state == FlowState.Racing)
+                BeginResults();
+            else
+                OnLateFinishRecorded();
         }
 
         void OnDriver2RaceFinished()
         {
-            if (_state != FlowState.Racing || _player2Time >= 0f)
+            if (_player2Time >= 0f)
+                return;
+            if (_state != FlowState.Racing && _state != FlowState.Results)
                 return;
 
-            _player2Time = Time.time - _raceStartTime;
+            _player2Time = GetRaceElapsed();
             raceDriverP2?.SetRaceInputEnabled(false);
-            BeginResults();
+
+            if (_state == FlowState.Racing)
+                BeginResults();
+            else
+                OnLateFinishRecorded();
         }
 
         /// <summary>
-        /// The first horse over the line ends the race. Holding the result back until
-        /// everyone had finished left the winner watching their own screen do nothing and
-        /// the rider behind still running for a race that was already decided.
+        /// A finish that landed after the grace UI already showed DNF — swap in the
+        /// real time and refresh the board. Late crossings still count.
+        /// </summary>
+        void OnLateFinishRecorded()
+        {
+            if (_player1Time >= 0f && _player2Time >= 0f)
+                _raceEndTime = WinningTime();
+
+            RefreshRaceTimer();
+
+            if (!_showingVerdict)
+                return;
+
+            SubmitLeaderboardTimes();
+            ShowPlayerTimePills();
+            RefreshLeaderboardRows();
+        }
+
+        /// <summary>
+        /// The first horse over the line decides the winner. The other rider may keep
+        /// racing for a real finish time; grace only controls when DNF first appears.
         /// </summary>
         void BeginResults()
         {
@@ -718,13 +786,17 @@ namespace HorseRacing.UI
                 return;
 
             _raceEndTime = WinningTime();
-            PullUpUnfinishedDrivers();
+            var raceEndUtcTicks = _raceStartUtcTicks > 0
+                ? _raceStartUtcTicks + (long)(_raceEndTime * TimeSpan.TicksPerSecond)
+                : DateTime.UtcNow.Ticks;
+            RaceEnded?.Invoke(raceEndUtcTicks);
             RefreshRaceTimer();
-            StopFlow();
+            // Stop the match coroutine only — do not freeze the unfinished horse.
+            StopFlow(disableAllInput: false);
             _flowCoroutine = StartCoroutine(ShowResultsSequence());
         }
 
-        /// <summary>Time on the line, which is now the only finish time in the race.</summary>
+        /// <summary>Time on the line for the horse that ended the race.</summary>
         float WinningTime()
         {
             if (_player1Time < 0f) return _player2Time;
@@ -732,23 +804,34 @@ namespace HorseRacing.UI
             return Mathf.Min(_player1Time, _player2Time);
         }
 
-        void PullUpUnfinishedDrivers()
-        {
-            if (_player1Time < 0f && raceDriver)
-                raceDriver.PullUpAndStopRacing();
-
-            if (!Solo && _player2Time < 0f && raceDriverP2)
-                raceDriverP2.PullUpAndStopRacing();
-        }
+        bool BothPlayersHaveTimes() =>
+            _player1Time >= 0f && (Solo || !raceDriverP2 || _player2Time >= 0f);
 
         IEnumerator ShowResultsSequence()
         {
             ApplyState(FlowState.Results);
-            SubmitLeaderboardTimes();
 
+            // Winner is decided immediately; times fill in as riders cross.
             ApplyVerdicts();
-            ShowPlayerTimePills();
             AnimateVerdictPop();
+
+            if (!Solo && !BothPlayersHaveTimes() && finishGraceSeconds > 0.01f)
+            {
+                var remaining = finishGraceSeconds;
+                while (remaining > 0f && !BothPlayersHaveTimes())
+                {
+                    remaining -= Time.unscaledDeltaTime;
+                    yield return null;
+                }
+            }
+
+            if (BothPlayersHaveTimes())
+                _raceEndTime = WinningTime();
+
+            // Show time or provisional DNF — unfinished riders keep racing so a later
+            // crossing still upgrades DNF via OnLateFinishRecorded.
+            SubmitLeaderboardTimes();
+            ShowPlayerTimePills();
             yield return WaitSeconds(verdictHoldSeconds);
 
             RefreshLeaderboardRows();
@@ -1379,7 +1462,7 @@ namespace HorseRacing.UI
             countdownCG?.DOKill();
         }
 
-        void StopFlow()
+        void StopFlow(bool disableAllInput = true)
         {
             if (_flowCoroutine != null)
             {
@@ -1387,7 +1470,8 @@ namespace HorseRacing.UI
                 _flowCoroutine = null;
             }
 
-            SetDriversInputEnabled(false);
+            if (disableAllInput)
+                SetDriversInputEnabled(false);
         }
     }
 }

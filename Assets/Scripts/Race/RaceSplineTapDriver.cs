@@ -729,7 +729,19 @@ namespace HorseRacing.Race
             var speed = _runOutStartSpeed * remaining * remaining;
 
             if (speed > 0.05f)
-                _normalizedT = Mathf.Repeat(_normalizedT + speed * deltaTime / _splineLength, 1f);
+            {
+                var step = speed * deltaTime;
+                _normalizedT = Mathf.Repeat(_normalizedT + step / _splineLength, 1f);
+
+                // Pull-up starts before the line for the loser — keep counting race
+                // distance so crossing during the ease-down still records a finish time.
+                if (!IsFinished)
+                {
+                    _raceProgress.Advance(step, ActiveRaceDistance);
+                    if (IsFinished)
+                        onRaceFinished?.Invoke();
+                }
+            }
 
             var gaitSpeed = speed / Mathf.Max(0.01f, courseSpeedMultiplier);
             _travelSpeed.FollowNative(gaitSpeed * deltaTime, deltaTime);

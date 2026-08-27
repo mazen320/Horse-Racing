@@ -43,6 +43,7 @@ namespace HorseRacing.Registration
         public event Action StartCommandReceived;
         public event Action RestartCommandReceived;
         public event Action EndGameCommandReceived;
+        public event Action NewRaceCommandReceived;
         public event Action<bool> ClientConnectionChanged;
 
         public bool HasRegistration => _registered;
@@ -158,6 +159,18 @@ namespace HorseRacing.Registration
 
             if (logTraffic)
                 Debug.Log($"[RegistrationTcpServer] Race started broadcast (utc ticks {raceStartUtcTicks})");
+        }
+
+        public void BroadcastRaceEnded(long raceEndUtcTicks)
+        {
+            Broadcast(new RegisterEntryData
+            {
+                raceEnded = true,
+                raceEndUtcTicks = raceEndUtcTicks
+            });
+
+            if (logTraffic)
+                Debug.Log($"[RegistrationTcpServer] Race ended broadcast (utc ticks {raceEndUtcTicks})");
         }
 
         void StartDiscoveryBroadcast()
@@ -328,7 +341,7 @@ namespace HorseRacing.Registration
 
         void ProcessMessage(RegisterEntryData data)
         {
-            if (data.pinging || data.raceStarted)
+            if (data.pinging || data.raceStarted || data.raceEnded)
                 return;
 
             if (data.restart)
@@ -336,6 +349,20 @@ namespace HorseRacing.Registration
                 _registered = false;
                 _lastRegistration = new RegisterEntryData();
                 RestartCommandReceived?.Invoke();
+                return;
+            }
+
+            if (data.newRace)
+            {
+                if (!_registered || _lastRegistration.entries == null || _lastRegistration.entries.Count == 0)
+                {
+                    Debug.LogWarning("[RegistrationTcpServer] New race ignored — no active registration on server");
+                    return;
+                }
+
+                NewRaceCommandReceived?.Invoke();
+                if (logTraffic)
+                    Debug.Log("[RegistrationTcpServer] New race (same players) received");
                 return;
             }
 

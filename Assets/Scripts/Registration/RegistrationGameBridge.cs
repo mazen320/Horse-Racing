@@ -37,9 +37,12 @@ namespace HorseRacing.Registration
             server.StartCommandReceived += OnStartCommand;
             server.RestartCommandReceived += OnRestart;
             server.EndGameCommandReceived += OnEndGame;
+            server.NewRaceCommandReceived += OnNewRace;
 
             if (uiManager)
                 uiManager.RaceStarted += OnRaceStarted;
+            if (uiManager)
+                uiManager.RaceEnded += OnRaceEnded;
         }
 
         void OnDisable()
@@ -51,14 +54,23 @@ namespace HorseRacing.Registration
             server.StartCommandReceived -= OnStartCommand;
             server.RestartCommandReceived -= OnRestart;
             server.EndGameCommandReceived -= OnEndGame;
+            server.NewRaceCommandReceived -= OnNewRace;
 
             if (uiManager)
+            {
                 uiManager.RaceStarted -= OnRaceStarted;
+                uiManager.RaceEnded -= OnRaceEnded;
+            }
         }
 
         void OnRaceStarted(long raceStartUtcTicks)
         {
             server?.BroadcastRaceStarted(raceStartUtcTicks);
+        }
+
+        void OnRaceEnded(long raceEndUtcTicks)
+        {
+            server?.BroadcastRaceEnded(raceEndUtcTicks);
         }
 
         void OnRegistrationReceived(RegisterEntryData data)
@@ -104,6 +116,12 @@ namespace HorseRacing.Registration
         void OnEndGame()
         {
             uiManager?.ApplyTabletRestart();
+        }
+
+        void OnNewRace()
+        {
+            // Same players: reset the field but keep names and go back to the post-register page.
+            uiManager?.ApplyTabletNewRace(skipToInstructionsOnRegister);
         }
 
         static string FindName(RegisterEntryData data, int userIndex)
