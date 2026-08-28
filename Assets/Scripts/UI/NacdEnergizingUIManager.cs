@@ -166,8 +166,8 @@ namespace HorseRacing.UI
         Vector2 _timerPillRestPos;
         bool _timerPillRestCached;
         RaceLeaderboardStore _leaderboard;
-        int _player1BoardPosition;
-        int _player2BoardPosition;
+        bool _player1Submitted;
+        bool _player2Submitted;
         Color _player1HighlightRestColor = Color.white;
         Color _player2HighlightRestColor = Color.white;
         bool _highlightRestCached;
@@ -336,6 +336,8 @@ namespace HorseRacing.UI
             _player2Time = -1f;
             _raceEndTime = -1f;
             _raceStartUtcTicks = 0;
+            _player1Submitted = false;
+            _player2Submitted = false;
             RefreshRaceTimer(0f);
             PrepareNameplateLayout();
             _flowCoroutine = StartCoroutine(RunSplitScreenRace());
@@ -627,8 +629,8 @@ namespace HorseRacing.UI
             _player2Time = -1f;
             _raceEndTime = -1f;
             _raceStartUtcTicks = 0;
-            _player1BoardPosition = 0;
-            _player2BoardPosition = 0;
+            _player1Submitted = false;
+            _player2Submitted = false;
             PrepareRaceFieldForMenu();
             _flowCoroutine = null;
         }
@@ -642,8 +644,8 @@ namespace HorseRacing.UI
             _player2Time = -1f;
             _raceEndTime = -1f;
             _raceStartUtcTicks = 0;
-            _player1BoardPosition = 0;
-            _player2BoardPosition = 0;
+            _player1Submitted = false;
+            _player2Submitted = false;
             _showingVerdict = false;
             RestoreHighlightColors();
             ResetNameplateScales();
@@ -773,7 +775,8 @@ namespace HorseRacing.UI
 
         /// <summary>
         /// A finish that landed after the grace UI already showed DNF — swap in the
-        /// real time and refresh the board. Late crossings still count.
+        /// real time and refresh the board. Only the late rider is filed; the winner
+        /// was already submitted when the results sequence opened.
         /// </summary>
         void OnLateFinishRecorded()
         {
@@ -887,8 +890,8 @@ namespace HorseRacing.UI
                 LoadLeaderboard();
 
             var backupPath = _leaderboard.ClearWithCsvBackup();
-            _player1BoardPosition = 0;
-            _player2BoardPosition = 0;
+            _player1Submitted = false;
+            _player2Submitted = false;
 
             if (!string.IsNullOrEmpty(backupPath))
                 Debug.Log($"Leaderboard cleared. CSV backup saved to {backupPath}");
@@ -903,13 +906,19 @@ namespace HorseRacing.UI
             if (_leaderboard == null)
                 LoadLeaderboard();
 
-            _player1BoardPosition = _player1Time > 0f
-                ? _leaderboard.Submit(player1Name, _player1Time)
-                : 0;
+            // Each rider may only be filed once per race. Late finishes re-call this after
+            // the grace window, and without the gate the winner gets inserted a second time.
+            if (!_player1Submitted && _player1Time > 0f)
+            {
+                _leaderboard.Submit(player1Name, _player1Time);
+                _player1Submitted = true;
+            }
 
-            _player2BoardPosition = !Solo && raceDriverP2 && _player2Time > 0f
-                ? _leaderboard.Submit(player2Name, _player2Time)
-                : 0;
+            if (!_player2Submitted && !Solo && raceDriverP2 && _player2Time > 0f)
+            {
+                _leaderboard.Submit(player2Name, _player2Time);
+                _player2Submitted = true;
+            }
         }
 
         /// <summary>
@@ -1052,11 +1061,33 @@ namespace HorseRacing.UI
                     row.timeText.richText = true;
                 }
 
-                var isNewRun = hasEntry &&
-                               (i + 1 == _player1BoardPosition || i + 1 == _player2BoardPosition);
+                var isNewRun = hasEntry && IsCurrentRaceEntry(entries[i]);
                 if (row.plate)
                     row.plate.color = isNewRun ? leaderboardRowHighlightColor : leaderboardRowColor;
             }
+        }
+
+        bool IsCurrentRaceEntry(RaceLeaderboardEntry entry)
+        {
+            if (entry == null)
+                return false;
+
+            if (_player1Submitted && EntryMatches(entry, player1Name, _player1Time))
+                return true;
+
+            if (_player2Submitted && !Solo && EntryMatches(entry, player2Name, _player2Time))
+                return true;
+
+            return false;
+        }
+
+        static bool EntryMatches(RaceLeaderboardEntry entry, string name, float seconds)
+        {
+            if (seconds <= 0f)
+                return false;
+
+            return entry.name == RaceLeaderboardModel.NormalizeName(name)
+                && Mathf.Abs(entry.seconds - seconds) <= 0.0001f;
         }
 
         void SetLeaderboardVisible(bool visible, bool instant)

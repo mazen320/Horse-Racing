@@ -941,6 +941,31 @@ namespace HorseRacing.Race
             return math.saturate(t);
         }
 
+        void OnEnable()
+        {
+            // Solo layout deactivates P2. Awake does not run again when they come back,
+            // so without this the horse stays unreceptive to taps forever.
+            if (_ready || _spline == null || !animal || !animator)
+                return;
+
+            CaptureOwnership();
+            ConfigureMovementOwnership();
+            DisableExternalControllers(transform);
+            SuppressStamina();
+            MuteHorseAudio(transform);
+
+            _effortModel.Reset();
+            _rootMotion.Reset();
+            _travelSpeed.Reset();
+            _gait = 0;
+            _animationGait = 0;
+            _runningOut = false;
+            _raceProgress.Reset();
+            _ready = true;
+            ApplyPose(true);
+            DriveGait(0);
+        }
+
         void OnDisable()
         {
             _ready = false;
