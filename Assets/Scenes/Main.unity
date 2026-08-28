@@ -89700,6 +89700,7 @@ MonoBehaviour:
   skipToInstructionsOnRegister: 1
   autoStartRaceOnStartCommand: 1
   appendRegistrationCsv: 1
+  clientLossGraceSeconds: 25
 --- !u!114 &826757391
 MonoBehaviour:
   m_ObjectHideFlags: 0
